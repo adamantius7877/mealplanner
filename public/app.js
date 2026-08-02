@@ -15,6 +15,7 @@ const elements = {
   mealIngredients: $("#mealIngredients"),
   mealCalories: $("#mealCalories"),
   mealServings: $("#mealServings"),
+  mealServingSize: $("#mealServingSize"),
   caloriePreview: $("#caloriePreview"),
   formTitle: $("#formTitle"),
   cancelEditBtn: $("#cancelEditBtn"),
@@ -47,6 +48,7 @@ function caloriesText(meal) {
   if (meal.calories !== null && meal.calories !== undefined) parts.push(`${meal.calories} cal total`);
   if (meal.caloriesPerServing) parts.push(`${meal.caloriesPerServing} cal/serving`);
   if (meal.servings) parts.push(`${meal.servings} servings`);
+  if (meal.servingSize) parts.push(`Serving: ${meal.servingSize}`);
   return parts;
 }
 
@@ -84,7 +86,8 @@ function mealPayloadFromForm() {
     name: elements.mealName.value.trim(),
     ingredients: elements.mealIngredients.value,
     calories: elements.mealCalories.value,
-    servings: elements.mealServings.value
+    servings: elements.mealServings.value,
+    servingSize: elements.mealServingSize.value
   };
 }
 
@@ -225,6 +228,7 @@ function editMeal(id) {
   elements.mealIngredients.value = meal.ingredients.join("\n");
   elements.mealCalories.value = meal.calories ?? "";
   elements.mealServings.value = meal.servings ?? "";
+  elements.mealServingSize.value = meal.servingSize ?? "";
   elements.formTitle.textContent = "Edit meal";
   elements.cancelEditBtn.classList.remove("hidden");
   updateCaloriePreview();
@@ -266,7 +270,20 @@ function parseCsv(text) {
 
   const [headers = [], ...dataRows] = rows.filter((item) => item.some((cellValue) => cellValue.trim()));
   const normalized = headers.map((header) => header.trim().toLowerCase().replaceAll(" ", "_"));
-  const knownHeaders = new Set(["name", "meal", "meal_name", "ingredients", "calories", "total_calories", "servings", "serving_size"]);
+  const knownHeaders = new Set([
+    "name",
+    "meal",
+    "meal_name",
+    "ingredients",
+    "calories",
+    "total_calories",
+    "servings",
+    "serving_count",
+    "number_of_servings",
+    "serving_size",
+    "serving_description",
+    "serving_size_text"
+  ]);
   const hasHeaderRow = normalized.some((header) => knownHeaders.has(header));
 
   if (!hasHeaderRow) {
@@ -278,7 +295,8 @@ function parseCsv(text) {
         name,
         ingredients: "",
         calories: "",
-        servings: ""
+        servings: "",
+        servingSize: ""
       }));
   }
 
@@ -291,7 +309,8 @@ function parseCsv(text) {
       name: entry.name || entry.meal || entry.meal_name,
       ingredients: entry.ingredients,
       calories: entry.calories || entry.total_calories,
-      servings: entry.servings || entry.serving_size
+      servings: entry.servings || entry.serving_count || entry.number_of_servings,
+      servingSize: entry.serving_size || entry.serving_description || entry.serving_size_text
     };
   });
 }

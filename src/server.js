@@ -21,6 +21,7 @@ db.exec(`
     ingredients TEXT NOT NULL DEFAULT '[]',
     calories INTEGER,
     servings REAL,
+    serving_size TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -42,6 +43,11 @@ db.exec(`
     UNIQUE(list_id, meal_id)
   );
 `);
+
+const mealColumns = db.prepare("PRAGMA table_info(meals)").all().map((column) => column.name);
+if (!mealColumns.includes("serving_size")) {
+  db.exec("ALTER TABLE meals ADD COLUMN serving_size TEXT NOT NULL DEFAULT ''");
+}
 
 const isoDate = () => new Date().toISOString();
 
@@ -76,6 +82,7 @@ function mealFromRow(row) {
     ingredients,
     calories,
     servings,
+    servingSize: row.serving_size || "",
     caloriesPerServing: calories && servings ? Math.round((calories / servings) * 10) / 10 : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -122,7 +129,8 @@ function validateMealPayload(payload) {
     name,
     ingredients: parseIngredients(payload.ingredients),
     calories: calories === null ? null : Math.round(calories),
-    servings
+    servings,
+    servingSize: String(payload.servingSize || payload.serving_size || "").trim()
   };
 }
 
@@ -282,9 +290,9 @@ route("DELETE", "/api/history/:listId", (_req, res, params) => {
 route("POST", "/api/meals", async (req, res) => {
   const meal = validateMealPayload(await readJson(req));
   const result = db.prepare(`
-    INSERT INTO meals (name, ingredients, calories, servings, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, isoDate());
+    INSERT INTO meals (name, ingredients, calories, servings, serving_size, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate());
   sendJson(res, 201, mealFromRow(db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid)));
 });
 
@@ -292,8 +300,8 @@ route("POST", "/api/meals/import", async (req, res) => {
   const body = await readJson(req);
   const rows = Array.isArray(body.meals) ? body.meals : [];
   const insert = db.prepare(`
-    INSERT INTO meals (name, ingredients, calories, servings, updated_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO meals (name, ingredients, calories, servings, serving_size, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   const imported = [];
   const skipped = [];
@@ -303,7 +311,7 @@ route("POST", "/api/meals/import", async (req, res) => {
     rows.forEach((row, index) => {
       try {
         const meal = validateMealPayload(row);
-        const result = insert.run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, isoDate());
+        const result = insert.run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate());
         imported.push(mealFromRow(db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid)));
       } catch (error) {
         skipped.push({ row: index + 1, reason: error.message });
@@ -321,9 +329,9 @@ route("PUT", "/api/meals/:id", async (req, res, params) => {
   const meal = validateMealPayload(await readJson(req));
   const result = db.prepare(`
     UPDATE meals
-    SET name = ?, ingredients = ?, calories = ?, servings = ?, updated_at = ?
+    SET name = ?, ingredients = ?, calories = ?, servings = ?, serving_size = ?, updated_at = ?
     WHERE id = ?
-  `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, isoDate(), params.id);
+  `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate(), params.id);
 
   if (!result.changes) return sendJson(res, 404, { error: "Meal not found." });
   sendJson(res, 200, mealFromRow(db.prepare("SELECT * FROM meals WHERE id = ?").get(params.id)));

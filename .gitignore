@@ -1,6 +1,7 @@
 data/
 node_modules/
 smoke-data/
+smoke-data-*/
 sources/
 AGENTS.md
 *.log

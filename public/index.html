@@ -53,10 +53,14 @@
                 <input id="mealCalories" name="calories" type="number" min="0" step="1">
               </label>
               <label>
-                Servings
+                Number of servings
                 <input id="mealServings" name="servings" type="number" min="0.1" step="0.1">
               </label>
             </div>
+            <label>
+              Serving size
+              <input id="mealServingSize" name="servingSize" type="text" placeholder="One cup, half the total, two tacos">
+            </label>
             <p id="caloriePreview" class="hint">Calories per serving will appear here.</p>
             <button class="primary wide" type="submit">Save meal</button>
           </form>
@@ -64,7 +68,7 @@
           <div class="import-box">
             <div>
               <h3>Import base meals</h3>
-              <p>CSV columns: name, ingredients, calories, servings.</p>
+              <p>CSV columns: name, ingredients, calories, servings, serving_size.</p>
             </div>
             <input id="csvInput" type="file" accept=".csv,text/csv">
           </div>

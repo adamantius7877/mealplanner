@@ -7,7 +7,7 @@ It is designed to run in Docker on another machine. Data is stored in a SQLite d
 ## Features
 
 - Add meals with a required name.
-- Optionally add ingredients, total calories, and serving size.
+- Optionally add ingredients, total calories, number of servings, and a text serving size such as "one cup" or "half the total."
 - See calories for the whole meal and calculated calories per serving.
 - Edit or remove meals from the main meal library.
 - Import base meals from a CSV file.
@@ -151,7 +151,8 @@ Use the import control in the app. Supported CSV headers:
 - `name` required
 - `ingredients` optional
 - `calories` or `total_calories` optional
-- `servings` or `serving_size` optional
+- `servings`, `serving_count`, or `number_of_servings` optional
+- `serving_size`, `serving_description`, or `serving_size_text` optional
 
 Ingredients can be separated by semicolons, commas, or new lines.
 
@@ -160,9 +161,9 @@ You can also import a headerless CSV that is just a list of meal names. Each cel
 Example:
 
 ```csv
-name,ingredients,calories,servings
-Chicken Tacos,"chicken; tortillas; lettuce; salsa",720,4
-Lentil Soup,"lentils; carrots; onion; broth",980,6
+name,ingredients,calories,servings,serving_size
+Chicken Tacos,"chicken; tortillas; lettuce; salsa",720,4,two tacos
+Lentil Soup,"lentils; carrots; onion; broth",980,6,one bowl
 ```
 
 ## Change the Port
