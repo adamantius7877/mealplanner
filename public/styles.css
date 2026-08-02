@@ -174,7 +174,7 @@ h3 {
 }
 
 .summary-grid {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 16px;
 }
 
@@ -211,8 +211,12 @@ h3 {
   margin-bottom: 16px;
 }
 
-.lower-grid {
-  grid-template-columns: minmax(420px, 1fr) minmax(320px, 0.9fr);
+.current-list-grid {
+  grid-template-columns: minmax(340px, 1fr) minmax(300px, 0.9fr) minmax(300px, 0.9fr);
+}
+
+.library-grid {
+  grid-template-columns: minmax(320px, 0.82fr) minmax(420px, 1.18fr);
 }
 
 .panel {
@@ -439,7 +443,8 @@ button:focus-visible {
 
   .summary-grid,
   .workspace-grid,
-  .lower-grid {
+  .current-list-grid,
+  .library-grid {
     grid-template-columns: 1fr;
   }
 

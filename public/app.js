@@ -23,11 +23,13 @@ const elements = {
   mealSearch: $("#mealSearch"),
   mealLibrary: $("#mealLibrary"),
   plannedMeals: $("#plannedMeals"),
+  hadMeals: $("#hadMeals"),
   groceryList: $("#groceryList"),
   historyList: $("#historyList"),
   periodLabel: $("#periodLabel"),
   plannedCount: $("#plannedCount"),
   groceryCount: $("#groceryCount"),
+  hadCount: $("#hadCount"),
   nextListBtn: $("#nextListBtn"),
   refreshHistoryBtn: $("#refreshHistoryBtn"),
   copyGroceryBtn: $("#copyGroceryBtn"),
@@ -123,9 +125,14 @@ function renderMealCard(meal, context = "library", listMeal = null) {
       <button class="ghost" data-action="edit" data-id="${meal.id}">Edit</button>
       <button class="ghost danger" data-action="delete" data-id="${meal.id}">Remove</button>
     `;
-  } else {
+  } else if (context === "planned") {
     actions = `
       <button class="ghost" data-action="had" data-list-meal-id="${listMeal.listMealId}">Had</button>
+      <button class="ghost danger" data-action="unplan" data-list-meal-id="${listMeal.listMealId}">Remove</button>
+    `;
+  } else if (context === "had") {
+    actions = `
+      <button class="ghost" data-action="unhad" data-list-meal-id="${listMeal.listMealId}">Unmark</button>
       <button class="ghost danger" data-action="unplan" data-list-meal-id="${listMeal.listMealId}">Remove</button>
     `;
   }
@@ -162,13 +169,19 @@ function renderMeals() {
 function renderActiveList() {
   const active = state.activeList;
   const planned = (active?.meals || []).filter((item) => item.status !== "had");
+  const had = (active?.meals || []).filter((item) => item.status === "had");
   elements.periodLabel.textContent = active ? `${formatDate(active.startDate)} - current` : "No active list";
   elements.plannedCount.textContent = planned.length;
   elements.groceryCount.textContent = active?.groceryItems?.length || 0;
+  elements.hadCount.textContent = had.length;
 
   elements.plannedMeals.innerHTML = planned.length
     ? planned.map((item) => renderMealCard(item.meal, "planned", item)).join("")
     : `<div class="empty">Choose meals from your library to plan this period.</div>`;
+
+  elements.hadMeals.innerHTML = had.length
+    ? had.map((item) => renderMealCard(item.meal, "had", item)).join("")
+    : `<div class="empty">Meals marked as had for this period will appear here.</div>`;
 
   elements.groceryList.innerHTML = active?.groceryItems?.length
     ? active.groceryItems.map((item, index) => `
@@ -370,6 +383,30 @@ elements.plannedMeals.addEventListener("click", async (event) => {
         body: JSON.stringify({ status: "had" })
       });
       showToast("Marked as had.");
+    }
+    if (button.dataset.action === "unplan") {
+      await api(`/api/list/meals/${id}`, { method: "DELETE" });
+      await loadState();
+      showToast("Removed from this list.");
+    }
+    render();
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+elements.hadMeals.addEventListener("click", async (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
+  const id = Number(button.dataset.listMealId);
+
+  try {
+    if (button.dataset.action === "unhad") {
+      state.activeList = await api(`/api/list/meals/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "planned" })
+      });
+      showToast("Moved back to meals to have.");
     }
     if (button.dataset.action === "unplan") {
       await api(`/api/list/meals/${id}`, { method: "DELETE" });

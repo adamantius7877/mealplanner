@@ -29,9 +29,39 @@
           <span>Grocery items</span>
           <strong id="groceryCount">0</strong>
         </article>
+        <article>
+          <span>Had this list</span>
+          <strong id="hadCount">0</strong>
+        </article>
       </section>
 
-      <section class="workspace-grid">
+      <section class="workspace-grid current-list-grid">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Meals to have</h2>
+            <span class="subtle">Marking as had moves it to this list's had meals.</span>
+          </div>
+          <div id="plannedMeals" class="meal-list"></div>
+        </section>
+
+        <section class="panel grocery-panel">
+          <div class="panel-heading">
+            <h2>Grocery list</h2>
+            <button id="copyGroceryBtn" class="ghost">Copy</button>
+          </div>
+          <div id="groceryList" class="grocery-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Had this list</h2>
+            <span class="subtle">These stay in your meal library.</span>
+          </div>
+          <div id="hadMeals" class="meal-list"></div>
+        </section>
+      </section>
+
+      <section class="workspace-grid library-grid">
         <section class="panel meal-form-panel">
           <div class="panel-heading">
             <h2 id="formTitle">Add a meal</h2>
@@ -80,24 +110,6 @@
             <input id="mealSearch" class="search" type="search" placeholder="Search meals">
           </div>
           <div id="mealLibrary" class="meal-list"></div>
-        </section>
-      </section>
-
-      <section class="workspace-grid lower-grid">
-        <section class="panel">
-          <div class="panel-heading">
-            <h2>Meals to have</h2>
-            <span class="subtle">Marking as had removes it from this period only.</span>
-          </div>
-          <div id="plannedMeals" class="meal-list"></div>
-        </section>
-
-        <section class="panel grocery-panel">
-          <div class="panel-heading">
-            <h2>Grocery list</h2>
-            <button id="copyGroceryBtn" class="ghost">Copy</button>
-          </div>
-          <div id="groceryList" class="grocery-list"></div>
         </section>
       </section>
 
