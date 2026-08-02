@@ -265,13 +265,29 @@ function parseCsv(text) {
 
   const [headers = [], ...dataRows] = rows.filter((item) => item.some((cellValue) => cellValue.trim()));
   const normalized = headers.map((header) => header.trim().toLowerCase().replaceAll(" ", "_"));
+  const knownHeaders = new Set(["name", "meal", "meal_name", "ingredients", "calories", "total_calories", "servings", "serving_size"]);
+  const hasHeaderRow = normalized.some((header) => knownHeaders.has(header));
+
+  if (!hasHeaderRow) {
+    return rows
+      .flat()
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => ({
+        name,
+        ingredients: "",
+        calories: "",
+        servings: ""
+      }));
+  }
+
   return dataRows.map((dataRow) => {
     const entry = {};
     normalized.forEach((header, index) => {
       entry[header] = dataRow[index]?.trim() || "";
     });
     return {
-      name: entry.name,
+      name: entry.name || entry.meal || entry.meal_name,
       ingredients: entry.ingredients,
       calories: entry.calories || entry.total_calories,
       servings: entry.servings || entry.serving_size

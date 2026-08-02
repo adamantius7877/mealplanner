@@ -154,6 +154,8 @@ Use the import control in the app. Supported CSV headers:
 
 Ingredients can be separated by semicolons, commas, or new lines.
 
+You can also import a headerless CSV that is just a list of meal names. Each cell will be imported as one meal.
+
 Example:
 
 ```csv
