@@ -25,7 +25,7 @@ ${COMPOSE} -f "${COMPOSE_FILE}" up -d --build --remove-orphans
 
 echo
 echo "${APP_NAME} is running."
-echo "Open http://localhost:3000 on this machine, or http://SERVER_IP:3000 from another device."
+echo "Open http://localhost:3002 on this machine, or http://SERVER_IP:3002 from another device."
 echo
 echo "Your meal data is stored in the Docker volume named meals-data."
 echo "Redeploying with this script rebuilds the app without deleting that volume."
