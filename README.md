@@ -25,6 +25,7 @@ It is designed to run in Docker on another machine. Data is stored in a SQLite d
 .
 |-- Dockerfile
 |-- docker-compose.yml
+|-- deploy.ps1
 |-- deploy.sh
 |-- package.json
 |-- public
@@ -42,7 +43,7 @@ On the machine that will host the app:
 - Docker
 - Docker Compose
 
-The script supports both modern `docker compose` and older `docker-compose`.
+The PowerShell deploy script supports both modern `docker compose` and older `docker-compose`.
 
 ## First Deploy
 
@@ -50,9 +51,9 @@ Copy this project folder to the machine where you want to host it.
 
 From inside the project folder, run:
 
-```sh
-chmod +x deploy.sh
-./deploy.sh
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force
+.\deploy.ps1
 ```
 
 Open the app:
@@ -77,8 +78,8 @@ http://192.168.1.25:3002
 
 When app files change, copy or pull the updated project folder onto the host machine, then run:
 
-```sh
-./deploy.sh
+```powershell
+.\deploy.ps1
 ```
 
 The script rebuilds the application image and restarts the container. It does not delete the database volume, so your meals, active list, and previous lists remain intact.
@@ -138,8 +139,8 @@ docker run --rm -v meals-data:/data -v "$PWD":/backup alpine cp /backup/meals-ba
 
 Start the app again:
 
-```sh
-./deploy.sh
+```powershell
+.\deploy.ps1
 ```
 
 ## CSV Import
@@ -172,8 +173,8 @@ ports:
 
 Then redeploy:
 
-```sh
-./deploy.sh
+```powershell
+.\deploy.ps1
 ```
 
 The app would then be available at:
@@ -186,8 +187,8 @@ http://SERVER_IP:8080
 
 Start or redeploy:
 
-```sh
-./deploy.sh
+```powershell
+.\deploy.ps1
 ```
 
 Stop the app without deleting data:
@@ -207,6 +208,8 @@ Restart:
 ```sh
 docker compose restart
 ```
+
+Linux or macOS hosts can use `./deploy.sh` instead of `.\deploy.ps1`.
 
 ## Local Development
 
