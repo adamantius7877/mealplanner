@@ -199,12 +199,20 @@ function renderActiveList() {
 function renderHistory() {
   elements.historyList.innerHTML = state.history.length
     ? state.history.map((list) => {
-      const meals = list.meals.map((item) => item.meal.name).join(", ") || "No meals recorded";
+      const plannedMeals = list.meals
+        .filter((item) => item.status !== "had")
+        .map((item) => item.meal.name)
+        .join(", ") || "None";
+      const hadMeals = list.meals
+        .filter((item) => item.status === "had")
+        .map((item) => item.meal.name)
+        .join(", ") || "None";
       return `
         <details class="history-card">
           <summary>${formatDate(list.startDate)} - ${formatDate(list.endDate)}</summary>
           <div class="history-body">
-            <p><strong>Meals:</strong> ${escapeHtml(meals)}</p>
+            <p><strong>Planned, not had:</strong> ${escapeHtml(plannedMeals)}</p>
+            <p><strong>Had:</strong> ${escapeHtml(hadMeals)}</p>
             <p><strong>Grocery items:</strong> ${list.groceryItems.length ? escapeHtml(list.groceryItems.map((item) => item.name).join(", ")) : "None listed"}</p>
             <button class="ghost danger" data-action="delete-history" data-list-id="${list.id}">Remove list</button>
           </div>

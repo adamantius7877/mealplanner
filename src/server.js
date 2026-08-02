@@ -377,8 +377,27 @@ route("DELETE", "/api/list/meals/:listMealId", (_req, res, params) => {
 
 route("POST", "/api/list/next", (_req, res) => {
   const active = ensureActiveList();
-  db.prepare("UPDATE meal_lists SET end_date = ? WHERE id = ? AND end_date IS NULL").run(isoDate(), active.id);
-  ensureActiveList();
+  const unfinishedMeals = db.prepare(`
+    SELECT meal_id
+    FROM list_meals
+    WHERE list_id = ? AND status != 'had'
+    ORDER BY added_at ASC
+  `).all(active.id);
+
+  db.exec("BEGIN");
+  try {
+    db.prepare("UPDATE meal_lists SET end_date = ? WHERE id = ? AND end_date IS NULL").run(isoDate(), active.id);
+    const result = db.prepare("INSERT INTO meal_lists (start_date) VALUES (?)").run(isoDate());
+    const addMeal = db.prepare("INSERT INTO list_meals (list_id, meal_id) VALUES (?, ?)");
+    for (const item of unfinishedMeals) {
+      addMeal.run(result.lastInsertRowid, item.meal_id);
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
   sendJson(res, 201, activeListDetails());
 });
 
