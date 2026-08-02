@@ -38,26 +38,37 @@
       <section class="workspace-grid current-list-grid">
         <section class="panel">
           <div class="panel-heading">
-            <h2>Meals to have</h2>
-            <span class="subtle">Marking as had moves it to this list's had meals.</span>
+            <div class="panel-title">
+              <h2>Meals to have</h2>
+              <span class="subtle">Marking as had moves it to this list's had meals.</span>
+            </div>
+            <button class="ghost collapse-toggle" type="button" data-collapse-target="plannedMeals" aria-expanded="true">Collapse</button>
           </div>
           <div id="plannedMeals" class="meal-list"></div>
         </section>
 
-        <section class="panel grocery-panel">
-          <div class="panel-heading">
-            <h2>Grocery list</h2>
-            <button id="copyGroceryBtn" class="ghost">Copy</button>
-          </div>
-          <div id="groceryList" class="grocery-list"></div>
-        </section>
-
         <section class="panel">
           <div class="panel-heading">
-            <h2>Had this list</h2>
-            <span class="subtle">These stay in your meal library.</span>
+            <div class="panel-title">
+              <h2>Had this list</h2>
+              <span class="subtle">These stay in your meal library.</span>
+            </div>
+            <button class="ghost collapse-toggle" type="button" data-collapse-target="hadMeals" aria-expanded="true">Collapse</button>
           </div>
           <div id="hadMeals" class="meal-list"></div>
+        </section>
+
+        <section class="panel grocery-panel">
+          <div class="panel-heading">
+            <div class="panel-title">
+              <h2>Grocery list</h2>
+            </div>
+            <div class="panel-actions">
+              <button id="copyGroceryBtn" class="ghost">Copy</button>
+              <button class="ghost collapse-toggle" type="button" data-collapse-target="groceryList" aria-expanded="true">Collapse</button>
+            </div>
+          </div>
+          <div id="groceryList" class="grocery-list"></div>
         </section>
       </section>
 
@@ -106,8 +117,13 @@
 
         <section class="panel">
           <div class="panel-heading">
-            <h2>All meals</h2>
-            <input id="mealSearch" class="search" type="search" placeholder="Search meals">
+            <div class="panel-title">
+              <h2>All meals</h2>
+            </div>
+            <div class="panel-actions">
+              <input id="mealSearch" class="search" type="search" placeholder="Search meals">
+              <button class="ghost collapse-toggle" type="button" data-collapse-target="mealLibrary" aria-expanded="true">Collapse</button>
+            </div>
           </div>
           <div id="mealLibrary" class="meal-list"></div>
         </section>
@@ -115,8 +131,13 @@
 
       <section class="panel history-panel">
         <div class="panel-heading">
-          <h2>Previous lists</h2>
-          <button id="refreshHistoryBtn" class="ghost">Refresh</button>
+          <div class="panel-title">
+            <h2>Previous lists</h2>
+          </div>
+          <div class="panel-actions">
+            <button id="refreshHistoryBtn" class="ghost">Refresh</button>
+            <button class="ghost collapse-toggle" type="button" data-collapse-target="historyList" aria-expanded="true">Collapse</button>
+          </div>
         </div>
         <div id="historyList" class="history-list"></div>
       </section>

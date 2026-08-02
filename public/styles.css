@@ -231,6 +231,27 @@ h3 {
   margin-bottom: 14px;
 }
 
+.panel-title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.collapse-toggle {
+  min-width: 92px;
+}
+
+.collapsed {
+  display: none !important;
+}
+
 form {
   display: grid;
   gap: 12px;
@@ -439,6 +460,14 @@ button:focus-visible {
   .panel-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .panel-actions {
+    justify-content: stretch;
+  }
+
+  .panel-actions > * {
+    flex: 1 1 160px;
   }
 
   .summary-grid,

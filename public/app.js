@@ -470,6 +470,18 @@ elements.copyGroceryBtn.addEventListener("click", async () => {
   showToast("Grocery list copied.");
 });
 
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-collapse-target]");
+  if (!button) return;
+
+  const target = document.getElementById(button.dataset.collapseTarget);
+  if (!target) return;
+
+  const isCollapsed = target.classList.toggle("collapsed");
+  button.setAttribute("aria-expanded", String(!isCollapsed));
+  button.textContent = isCollapsed ? "Expand" : "Collapse";
+});
+
 elements.cancelEditBtn.addEventListener("click", resetForm);
 elements.refreshHistoryBtn.addEventListener("click", loadHistory);
 elements.mealSearch.addEventListener("input", () => {

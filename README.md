@@ -14,6 +14,7 @@ It is designed to run in Docker on another machine. Data is stored in a SQLite d
 - Add meals from the meal library to the current "Meals to Have" list.
 - Mark meals as had/done for the current period without deleting them from the main meal library.
 - See meals marked as had for the current period and move them back to "Meals to Have."
+- Collapse and expand the meal, grocery, history, and library lists.
 - Start the next list, which closes the current list and creates a fresh active list.
 - Automatically records list start and end dates.
 - View previous lists and the time periods they covered.
