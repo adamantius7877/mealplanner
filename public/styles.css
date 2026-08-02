@@ -216,7 +216,11 @@ h3 {
 }
 
 .library-grid {
-  grid-template-columns: minmax(320px, 0.82fr) minmax(420px, 1.18fr);
+  grid-template-columns: 1fr;
+}
+
+.meal-form-panel {
+  margin-bottom: 16px;
 }
 
 .panel {
