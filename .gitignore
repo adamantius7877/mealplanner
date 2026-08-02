@@ -1,0 +1,9 @@
+data/
+node_modules/
+smoke-data/
+sources/
+AGENTS.md
+*.log
+*.db
+*.db-shm
+*.db-wal

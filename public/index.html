@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Meals and Grocery Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Meal planning</p>
+          <h1>Meals and Grocery Dashboard</h1>
+        </div>
+        <button id="nextListBtn" class="primary">Start next list</button>
+      </section>
+
+      <section class="summary-grid" aria-label="Current list summary">
+        <article>
+          <span>Current period</span>
+          <strong id="periodLabel">Loading...</strong>
+        </article>
+        <article>
+          <span>Meals to have</span>
+          <strong id="plannedCount">0</strong>
+        </article>
+        <article>
+          <span>Grocery items</span>
+          <strong id="groceryCount">0</strong>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <section class="panel meal-form-panel">
+          <div class="panel-heading">
+            <h2 id="formTitle">Add a meal</h2>
+            <button id="cancelEditBtn" class="ghost hidden">Cancel edit</button>
+          </div>
+          <form id="mealForm">
+            <input type="hidden" id="mealId">
+            <label>
+              Meal name
+              <input id="mealName" name="name" type="text" autocomplete="off" required>
+            </label>
+            <label>
+              Ingredients
+              <textarea id="mealIngredients" name="ingredients" rows="5" placeholder="One per line, or separated by commas"></textarea>
+            </label>
+            <div class="two-column">
+              <label>
+                Total calories
+                <input id="mealCalories" name="calories" type="number" min="0" step="1">
+              </label>
+              <label>
+                Servings
+                <input id="mealServings" name="servings" type="number" min="0.1" step="0.1">
+              </label>
+            </div>
+            <p id="caloriePreview" class="hint">Calories per serving will appear here.</p>
+            <button class="primary wide" type="submit">Save meal</button>
+          </form>
+
+          <div class="import-box">
+            <div>
+              <h3>Import base meals</h3>
+              <p>CSV columns: name, ingredients, calories, servings.</p>
+            </div>
+            <input id="csvInput" type="file" accept=".csv,text/csv">
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>All meals</h2>
+            <input id="mealSearch" class="search" type="search" placeholder="Search meals">
+          </div>
+          <div id="mealLibrary" class="meal-list"></div>
+        </section>
+      </section>
+
+      <section class="workspace-grid lower-grid">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Meals to have</h2>
+            <span class="subtle">Marking as had removes it from this period only.</span>
+          </div>
+          <div id="plannedMeals" class="meal-list"></div>
+        </section>
+
+        <section class="panel grocery-panel">
+          <div class="panel-heading">
+            <h2>Grocery list</h2>
+            <button id="copyGroceryBtn" class="ghost">Copy</button>
+          </div>
+          <div id="groceryList" class="grocery-list"></div>
+        </section>
+      </section>
+
+      <section class="panel history-panel">
+        <div class="panel-heading">
+          <h2>Previous lists</h2>
+          <button id="refreshHistoryBtn" class="ghost">Refresh</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+    </main>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

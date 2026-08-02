@@ -1,0 +1,415 @@
+:root {
+  color-scheme: light;
+  --ink: #20231f;
+  --muted: #667064;
+  --line: #d8ded4;
+  --paper: #fbfcf8;
+  --panel: #ffffff;
+  --accent: #2f6f4e;
+  --accent-strong: #1f553a;
+  --gold: #bb7a22;
+  --soft-green: #e8f1e8;
+  --soft-gold: #fff4de;
+  --danger: #a64032;
+  --shadow: 0 18px 40px rgba(32, 35, 31, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(120deg, rgba(47, 111, 78, 0.08), transparent 38%),
+    linear-gradient(240deg, rgba(187, 122, 34, 0.1), transparent 34%),
+    var(--paper);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.app-shell {
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: clamp(2rem, 5vw, 4.6rem);
+  line-height: 0.98;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.08rem;
+}
+
+h3 {
+  margin-bottom: 4px;
+  font-size: 0.96rem;
+}
+
+.primary {
+  background: var(--accent);
+  color: white;
+  font-weight: 800;
+  padding: 0 18px;
+}
+
+.primary:hover,
+.primary:focus-visible {
+  background: var(--accent-strong);
+}
+
+.ghost {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  font-weight: 750;
+  padding: 0 12px;
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.wide {
+  width: 100%;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.summary-grid,
+.workspace-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.summary-grid {
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 16px;
+}
+
+.summary-grid article,
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.summary-grid article {
+  padding: 16px;
+}
+
+.summary-grid span,
+.subtle,
+.hint {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.summary-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.2rem;
+}
+
+.workspace-grid {
+  grid-template-columns: minmax(320px, 0.82fr) minmax(420px, 1.18fr);
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.lower-grid {
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, 0.9fr);
+}
+
+.panel {
+  padding: 18px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+form {
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+  padding: 11px 12px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 3px solid rgba(47, 111, 78, 0.22);
+  outline-offset: 1px;
+}
+
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.hint {
+  min-height: 20px;
+  margin-bottom: 0;
+}
+
+.import-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.import-box p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.search {
+  max-width: 220px;
+  min-height: 40px;
+}
+
+.meal-list,
+.history-list,
+.grocery-list {
+  display: grid;
+  gap: 10px;
+}
+
+.meal-card,
+.history-card,
+.grocery-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 13px;
+}
+
+.meal-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.meal-card h3 {
+  margin: 0 0 6px;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  background: var(--soft-green);
+  color: var(--accent-strong);
+  padding: 0 9px;
+  font-weight: 750;
+}
+
+.ingredients {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.card-actions button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.empty {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  padding: 18px;
+  text-align: center;
+}
+
+.grocery-item {
+  display: grid;
+  gap: 4px;
+}
+
+.grocery-item label {
+  display: flex;
+  align-items: center;
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.grocery-item input {
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  accent-color: var(--accent);
+}
+
+.grocery-item small {
+  color: var(--muted);
+  padding-left: 28px;
+}
+
+.history-card summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.history-card .history-body {
+  margin-top: 12px;
+}
+
+#toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  max-width: min(360px, calc(100% - 36px));
+  border-radius: 8px;
+  background: var(--ink);
+  color: white;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 160ms ease, transform 160ms ease;
+  padding: 12px 14px;
+  pointer-events: none;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .summary-grid,
+  .workspace-grid,
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .search {
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    width: min(100% - 20px, 1440px);
+    padding-top: 16px;
+  }
+
+  .summary-grid {
+    gap: 10px;
+  }
+
+  .panel,
+  .summary-grid article {
+    padding: 14px;
+  }
+
+  .two-column,
+  .meal-card {
+    grid-template-columns: 1fr;
+  }
+
+  .card-actions {
+    justify-content: stretch;
+  }
+
+  .card-actions button {
+    flex: 1 1 120px;
+  }
+}

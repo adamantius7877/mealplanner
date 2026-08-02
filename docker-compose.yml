@@ -1,0 +1,15 @@
+services:
+  meals:
+    build: .
+    container_name: meals-and-grocery-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      DB_PATH: /data/meals.db
+    volumes:
+      - meals-data:/data
+    restart: unless-stopped
+
+volumes:
+  meals-data:
+    name: meals-data
