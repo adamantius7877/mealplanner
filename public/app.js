@@ -190,6 +190,7 @@ function renderHistory() {
           <div class="history-body">
             <p><strong>Meals:</strong> ${escapeHtml(meals)}</p>
             <p><strong>Grocery items:</strong> ${list.groceryItems.length ? escapeHtml(list.groceryItems.map((item) => item.name).join(", ")) : "None listed"}</p>
+            <button class="ghost danger" data-action="delete-history" data-list-id="${list.id}">Remove list</button>
           </div>
         </details>
       `;
@@ -369,6 +370,20 @@ elements.nextListBtn.addEventListener("click", async () => {
     await loadHistory();
     await loadState();
     showToast("New list started.");
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+elements.historyList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button");
+  if (!button || button.dataset.action !== "delete-history") return;
+  if (!confirm("Remove this previous list? This will not delete meals from your meal library.")) return;
+
+  try {
+    await api(`/api/history/${button.dataset.listId}`, { method: "DELETE" });
+    await loadHistory();
+    showToast("Previous list removed.");
   } catch (error) {
     showToast(error.message);
   }

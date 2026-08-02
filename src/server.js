@@ -273,6 +273,12 @@ route("GET", "/api/history", (_req, res) => {
   }));
 });
 
+route("DELETE", "/api/history/:listId", (_req, res, params) => {
+  const result = db.prepare("DELETE FROM meal_lists WHERE id = ? AND end_date IS NOT NULL").run(params.listId);
+  if (!result.changes) return sendJson(res, 404, { error: "Previous list not found." });
+  sendNoContent(res);
+});
+
 route("POST", "/api/meals", async (req, res) => {
   const meal = validateMealPayload(await readJson(req));
   const result = db.prepare(`

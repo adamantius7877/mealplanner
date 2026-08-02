@@ -16,6 +16,7 @@ It is designed to run in Docker on another machine. Data is stored in a SQLite d
 - Start the next list, which closes the current list and creates a fresh active list.
 - Automatically records list start and end dates.
 - View previous lists and the time periods they covered.
+- Remove previous lists without deleting meals from the main meal library.
 - See an aggregated grocery list from ingredients on planned meals.
 - Copy the current grocery list for shopping.
 
