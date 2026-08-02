@@ -3,7 +3,7 @@ services:
     build: .
     container_name: meals-and-grocery-dashboard
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       DB_PATH: /data/meals.db
     volumes:

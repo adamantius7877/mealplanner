@@ -58,19 +58,19 @@ chmod +x deploy.sh
 Open the app:
 
 ```text
-http://localhost:3000
+http://localhost:3002
 ```
 
 From another device on the same network, use the host machine's IP address:
 
 ```text
-http://SERVER_IP:3000
+http://SERVER_IP:3002
 ```
 
 For example:
 
 ```text
-http://192.168.1.25:3000
+http://192.168.1.25:3002
 ```
 
 ## Redeploy After Changes
@@ -163,7 +163,7 @@ Lentil Soup,"lentils; carrots; onion; broth",980,6
 
 ## Change the Port
 
-The app listens on port `3000` by default. To expose it on a different host port, edit `docker-compose.yml`:
+The app listens on port `3000` inside Docker and is exposed as port `3002` on the host by default. To expose it on a different host port, edit `docker-compose.yml`:
 
 ```yaml
 ports:
