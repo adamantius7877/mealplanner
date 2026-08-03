@@ -228,20 +228,33 @@ async function migrateLocalMealsToSharedFoodLibrary() {
 }
 
 async function syncMealsFromSharedFoodLibrary() {
-  if (!hasSharedFoodLibrary()) return;
+  if (!hasSharedFoodLibrary()) return [];
 
   await migrateLocalMealsToSharedFoodLibrary();
   const body = await sharedFoodRequest("?type=meal");
   const foods = Array.isArray(body?.foods) ? body.foods : [];
+  const sharedMealIds = [];
   for (const food of foods) {
     const meal = mealFromSharedFood(food);
     if (!meal.name || !meal.sharedFoodId) continue;
+    sharedMealIds.push(meal.sharedFoodId);
     upsertLocalMealSnapshot(meal);
   }
+  return sharedMealIds;
 }
 
 async function getMealLibrary() {
-  if (hasSharedFoodLibrary()) await syncMealsFromSharedFoodLibrary();
+  if (hasSharedFoodLibrary()) {
+    const sharedMealIds = await syncMealsFromSharedFoodLibrary();
+    if (!sharedMealIds.length) return [];
+    const placeholders = sharedMealIds.map(() => "?").join(", ");
+    return db.prepare(`
+      SELECT *
+      FROM meals
+      WHERE shared_food_id IN (${placeholders})
+      ORDER BY name COLLATE NOCASE
+    `).all(...sharedMealIds).map(mealFromRow);
+  }
   return db.prepare("SELECT * FROM meals ORDER BY name COLLATE NOCASE").all().map(mealFromRow);
 }
 
