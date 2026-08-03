@@ -2,11 +2,12 @@
 
 Meals and Grocery Dashboard is a small self-hosted web app for keeping a reusable meal library, choosing meals for the current planning period, and turning those planned meals into a grocery list.
 
-It is designed to run in Docker on another machine. Data is stored in a SQLite database inside a Docker volume, so app redeploys and rebuilds do not erase your meals or list history.
+It is designed to run in Docker on another machine. Meal lists and list history are stored in a SQLite database inside a Docker volume, so app redeploys and rebuilds do not erase your planning history. The reusable meal library can be shared with CaloriesDashboard through its shared food API.
 
 ## Features
 
 - Add meals with a required name.
+- Share the reusable meal library with CaloriesDashboard.
 - Optionally add ingredients, total calories, number of servings, and a text serving size such as "one cup" or "half the total."
 - See calories for the whole meal and calculated calories per serving.
 - Edit or remove meals from the main meal library.
@@ -30,6 +31,7 @@ It is designed to run in Docker on another machine. Data is stored in a SQLite d
 |-- docker-compose.yml
 |-- deploy.ps1
 |-- deploy.sh
+|-- .env.example
 |-- package.json
 |-- public
 |   |-- app.js
@@ -59,6 +61,8 @@ Set-ExecutionPolicy -Scope Process Bypass -Force
 .\deploy.ps1
 ```
 
+The deploy script creates `.env` from `.env.example` if `.env` does not exist.
+
 Open the app:
 
 ```text
@@ -87,9 +91,35 @@ When app files change, copy or pull the updated project folder onto the host mac
 
 The script rebuilds the application image and restarts the container. It does not delete the database volume, so your meals, active list, and previous lists remain intact.
 
+## Shared Meal Library With CaloriesDashboard
+
+Mealplanner can use CaloriesDashboard as the shared database for meals only. Active lists, had/not-had status, previous lists, and grocery-list history still stay in Mealplanner's existing SQLite database.
+
+Configure the shared meal server in `.env`:
+
+```text
+SHARED_FOOD_SERVER=host.docker.internal
+SHARED_FOOD_PORT=3000
+```
+
+Use `host.docker.internal` when CaloriesDashboard is running in Docker on the same Windows host and is exposed on port `3000`. If CaloriesDashboard is running on another machine, use that machine's server name or IP address:
+
+```text
+SHARED_FOOD_SERVER=192.168.1.25
+SHARED_FOOD_PORT=3000
+```
+
+On startup, Mealplanner migrates existing local meals to CaloriesDashboard's shared food API using stable IDs like `mealplanner-12`. Meals that had blank or `0` calories are sent as `1` calorie so the shared API accepts them.
+
+After migration:
+
+- The All meals library is read from the shared food library.
+- Adding, editing, importing, or removing meals writes to the shared food library.
+- Existing current and previous lists keep working because Mealplanner preserves local meal references for list history.
+
 ## Data Persistence
 
-The app stores its database at this path inside the container:
+The app stores list and history data at this path inside the container:
 
 ```text
 /data/meals.db
@@ -108,9 +138,9 @@ volumes:
   - meals-data:/data
 ```
 
-This means normal redeploys, restarts, and rebuilds preserve the database.
+This means normal redeploys, restarts, and rebuilds preserve list and history data.
 
-Important: do not remove the `meals-data` Docker volume unless you intentionally want to delete all app data.
+Important: do not remove the `meals-data` Docker volume unless you intentionally want to delete Mealplanner list and history data. Shared meal-library data lives in the CaloriesDashboard PostgreSQL database.
 
 ## Backup Data
 

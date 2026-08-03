@@ -6,6 +6,9 @@ services:
       - "3002:3000"
     environment:
       DB_PATH: /data/meals.db
+      SHARED_FOOD_SERVER: ${SHARED_FOOD_SERVER:-}
+      SHARED_FOOD_PORT: ${SHARED_FOOD_PORT:-3000}
+      SHARED_FOOD_API_URL: ${SHARED_FOOD_API_URL:-}
     volumes:
       - meals-data:/data
     restart: unless-stopped

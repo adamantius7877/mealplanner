@@ -5,9 +5,37 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function loadEnvFile() {
+  const envPath = path.join(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separator = trimmed.indexOf("=");
+    if (separator < 1) continue;
+    const key = trimmed.slice(0, separator).trim();
+    let value = trimmed.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadEnvFile();
+
 const port = Number(process.env.PORT || 3000);
 const dbPath = process.env.DB_PATH || path.join(process.cwd(), "data", "meals.db");
 const publicDir = path.join(__dirname, "..", "public");
+const sharedFoodServer = String(process.env.SHARED_FOOD_SERVER || "").trim();
+const sharedFoodPort = String(process.env.SHARED_FOOD_PORT || "3000").trim();
+const sharedFoodApiUrl = String(
+  process.env.SHARED_FOOD_API_URL || (sharedFoodServer ? `http://${sharedFoodServer}:${sharedFoodPort}/api/foods` : "")
+).replace(/\/$/, "");
+const sharedFoodSource = "MealsAndGroceryDashboard";
 
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new DatabaseSync(dbPath);
@@ -48,8 +76,13 @@ const mealColumns = db.prepare("PRAGMA table_info(meals)").all().map((column) =>
 if (!mealColumns.includes("serving_size")) {
   db.exec("ALTER TABLE meals ADD COLUMN serving_size TEXT NOT NULL DEFAULT ''");
 }
+if (!mealColumns.includes("shared_food_id")) {
+  db.exec("ALTER TABLE meals ADD COLUMN shared_food_id TEXT");
+}
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_meals_shared_food_id ON meals(shared_food_id) WHERE shared_food_id IS NOT NULL");
 
 const isoDate = () => new Date().toISOString();
+const hasSharedFoodLibrary = () => Boolean(sharedFoodApiUrl);
 
 function ensureActiveList() {
   let active = db.prepare("SELECT * FROM meal_lists WHERE end_date IS NULL ORDER BY id DESC LIMIT 1").get();
@@ -83,6 +116,7 @@ function mealFromRow(row) {
     calories,
     servings,
     servingSize: row.serving_size || "",
+    sharedFoodId: row.shared_food_id || null,
     caloriesPerServing: calories && servings ? Math.round((calories / servings) * 10) / 10 : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -96,6 +130,119 @@ function listFromRow(row) {
     endDate: row.end_date,
     createdAt: row.created_at
   };
+}
+
+function mealFromSharedFood(row) {
+  const calories = row.calories === null || row.calories === undefined ? null : Number(row.calories);
+  const servings = row.servings === null || row.servings === undefined ? null : Number(row.servings);
+  return {
+    name: String(row.name || "").trim(),
+    ingredients: parseIngredients(row.ingredients),
+    calories: calories && calories > 0 ? Math.round(calories) : 1,
+    servings: Number.isFinite(servings) && servings > 0 ? servings : null,
+    servingSize: String(row.serving || "").trim(),
+    sharedFoodId: String(row.id || "").trim()
+  };
+}
+
+function sharedFoodIdForLocalMeal(localId) {
+  return `mealplanner-${localId}`;
+}
+
+function sharedFoodPayload(meal, sharedFoodId) {
+  const calories = meal.calories && meal.calories > 0 ? meal.calories : 1;
+  return {
+    id: sharedFoodId,
+    name: meal.name,
+    type: "meal",
+    calories,
+    servings: meal.servings || undefined,
+    serving: meal.servingSize || undefined,
+    ingredients: meal.ingredients.join("\n") || undefined,
+    source: sharedFoodSource
+  };
+}
+
+async function sharedFoodRequest(pathSuffix = "", options = {}) {
+  if (!hasSharedFoodLibrary()) {
+    const error = new Error("Shared food server is not configured.");
+    error.status = 500;
+    throw error;
+  }
+
+  const response = await fetch(`${sharedFoodApiUrl}${pathSuffix}`, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    signal: AbortSignal.timeout(10_000),
+    ...options
+  });
+
+  const body = response.status === 204 ? null : await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(body?.error || "Shared food library request failed.");
+    error.status = response.status >= 500 ? 502 : response.status;
+    throw error;
+  }
+  return body;
+}
+
+async function upsertSharedFood(meal, sharedFoodId) {
+  const body = await sharedFoodRequest("", {
+    method: "POST",
+    body: JSON.stringify(sharedFoodPayload(meal, sharedFoodId))
+  });
+  return body?.food;
+}
+
+function upsertLocalMealSnapshot(meal) {
+  const existing = meal.sharedFoodId
+    ? db.prepare("SELECT id FROM meals WHERE shared_food_id = ?").get(meal.sharedFoodId)
+    : null;
+
+  if (existing) {
+    db.prepare(`
+      UPDATE meals
+      SET name = ?, ingredients = ?, calories = ?, servings = ?, serving_size = ?, updated_at = ?
+      WHERE shared_food_id = ?
+    `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate(), meal.sharedFoodId);
+    return existing.id;
+  }
+
+  const result = db.prepare(`
+    INSERT INTO meals (name, ingredients, calories, servings, serving_size, shared_food_id, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, meal.sharedFoodId || null, isoDate());
+  return result.lastInsertRowid;
+}
+
+async function migrateLocalMealsToSharedFoodLibrary() {
+  if (!hasSharedFoodLibrary()) return;
+
+  const localOnlyMeals = db.prepare("SELECT * FROM meals WHERE shared_food_id IS NULL ORDER BY id ASC").all();
+  for (const row of localOnlyMeals) {
+    const meal = mealFromRow(row);
+    const sharedFoodId = sharedFoodIdForLocalMeal(row.id);
+    await upsertSharedFood(meal, sharedFoodId);
+    db.prepare("UPDATE meals SET shared_food_id = ?, calories = COALESCE(NULLIF(calories, 0), 1), updated_at = ? WHERE id = ?")
+      .run(sharedFoodId, isoDate(), row.id);
+  }
+}
+
+async function syncMealsFromSharedFoodLibrary() {
+  if (!hasSharedFoodLibrary()) return;
+
+  await migrateLocalMealsToSharedFoodLibrary();
+  const body = await sharedFoodRequest("?type=meal");
+  const foods = Array.isArray(body?.foods) ? body.foods : [];
+  for (const food of foods) {
+    const meal = mealFromSharedFood(food);
+    if (!meal.name || !meal.sharedFoodId) continue;
+    upsertLocalMealSnapshot(meal);
+  }
+}
+
+async function getMealLibrary() {
+  if (hasSharedFoodLibrary()) await syncMealsFromSharedFoodLibrary();
+  return db.prepare("SELECT * FROM meals ORDER BY name COLLATE NOCASE").all().map(mealFromRow);
 }
 
 function validateMealPayload(payload) {
@@ -263,13 +410,14 @@ function matchRoute(method, pathname, pattern) {
 const routes = [];
 const route = (method, pathPattern, handler) => routes.push({ method, path: pathPattern, handler });
 
-route("GET", "/api/state", (_req, res) => {
-  const meals = db.prepare("SELECT * FROM meals ORDER BY name COLLATE NOCASE").all().map(mealFromRow);
+route("GET", "/api/state", async (_req, res) => {
+  const meals = await getMealLibrary();
   const activeList = activeListDetails();
   sendJson(res, 200, { meals, activeList });
 });
 
-route("GET", "/api/history", (_req, res) => {
+route("GET", "/api/history", async (_req, res) => {
+  if (hasSharedFoodLibrary()) await syncMealsFromSharedFoodLibrary();
   const lists = db.prepare("SELECT * FROM meal_lists WHERE end_date IS NOT NULL ORDER BY start_date DESC").all();
   sendJson(res, 200, lists.map((list) => {
     const meals = getMealsForList(list.id);
@@ -289,6 +437,24 @@ route("DELETE", "/api/history/:listId", (_req, res, params) => {
 
 route("POST", "/api/meals", async (req, res) => {
   const meal = validateMealPayload(await readJson(req));
+  if (hasSharedFoodLibrary()) {
+    const result = db.prepare(`
+      INSERT INTO meals (name, ingredients, calories, servings, serving_size, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate());
+
+    try {
+      const sharedFoodId = sharedFoodIdForLocalMeal(result.lastInsertRowid);
+      await upsertSharedFood(meal, sharedFoodId);
+      db.prepare("UPDATE meals SET shared_food_id = ?, calories = COALESCE(NULLIF(calories, 0), 1), updated_at = ? WHERE id = ?")
+        .run(sharedFoodId, isoDate(), result.lastInsertRowid);
+      return sendJson(res, 201, mealFromRow(db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid)));
+    } catch (error) {
+      db.prepare("DELETE FROM meals WHERE id = ?").run(result.lastInsertRowid);
+      throw error;
+    }
+  }
+
   const result = db.prepare(`
     INSERT INTO meals (name, ingredients, calories, servings, serving_size, updated_at)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -299,45 +465,66 @@ route("POST", "/api/meals", async (req, res) => {
 route("POST", "/api/meals/import", async (req, res) => {
   const body = await readJson(req);
   const rows = Array.isArray(body.meals) ? body.meals : [];
-  const insert = db.prepare(`
-    INSERT INTO meals (name, ingredients, calories, servings, serving_size, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
   const imported = [];
   const skipped = [];
 
-  db.exec("BEGIN");
-  try {
-    rows.forEach((row, index) => {
-      try {
-        const meal = validateMealPayload(row);
-        const result = insert.run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate());
-        imported.push(mealFromRow(db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid)));
-      } catch (error) {
-        skipped.push({ row: index + 1, reason: error.message });
+  for (let index = 0; index < rows.length; index += 1) {
+    try {
+      const meal = validateMealPayload(rows[index]);
+      const result = db.prepare(`
+        INSERT INTO meals (name, ingredients, calories, servings, serving_size, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate());
+
+      if (hasSharedFoodLibrary()) {
+        try {
+          const sharedFoodId = sharedFoodIdForLocalMeal(result.lastInsertRowid);
+          await upsertSharedFood(meal, sharedFoodId);
+          db.prepare("UPDATE meals SET shared_food_id = ?, calories = COALESCE(NULLIF(calories, 0), 1), updated_at = ? WHERE id = ?")
+            .run(sharedFoodId, isoDate(), result.lastInsertRowid);
+        } catch (error) {
+          db.prepare("DELETE FROM meals WHERE id = ?").run(result.lastInsertRowid);
+          throw error;
+        }
       }
-    });
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
+
+      imported.push(mealFromRow(db.prepare("SELECT * FROM meals WHERE id = ?").get(result.lastInsertRowid)));
+    } catch (error) {
+      skipped.push({ row: index + 1, reason: error.message });
+    }
   }
   sendJson(res, 201, { imported, skipped });
 });
 
 route("PUT", "/api/meals/:id", async (req, res, params) => {
   const meal = validateMealPayload(await readJson(req));
+  const existing = db.prepare("SELECT * FROM meals WHERE id = ?").get(params.id);
+  if (!existing) return sendJson(res, 404, { error: "Meal not found." });
+
+  if (hasSharedFoodLibrary()) {
+    const sharedFoodId = existing.shared_food_id || sharedFoodIdForLocalMeal(params.id);
+    await upsertSharedFood(meal, sharedFoodId);
+    meal.calories = meal.calories && meal.calories > 0 ? meal.calories : 1;
+    meal.sharedFoodId = sharedFoodId;
+  }
+
   const result = db.prepare(`
     UPDATE meals
-    SET name = ?, ingredients = ?, calories = ?, servings = ?, serving_size = ?, updated_at = ?
+    SET name = ?, ingredients = ?, calories = ?, servings = ?, serving_size = ?, shared_food_id = ?, updated_at = ?
     WHERE id = ?
-  `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, isoDate(), params.id);
+  `).run(meal.name, JSON.stringify(meal.ingredients), meal.calories, meal.servings, meal.servingSize, meal.sharedFoodId || existing.shared_food_id || null, isoDate(), params.id);
 
   if (!result.changes) return sendJson(res, 404, { error: "Meal not found." });
   sendJson(res, 200, mealFromRow(db.prepare("SELECT * FROM meals WHERE id = ?").get(params.id)));
 });
 
-route("DELETE", "/api/meals/:id", (_req, res, params) => {
+route("DELETE", "/api/meals/:id", async (_req, res, params) => {
+  const existing = db.prepare("SELECT * FROM meals WHERE id = ?").get(params.id);
+  if (!existing) return sendJson(res, 404, { error: "Meal not found." });
+  if (hasSharedFoodLibrary() && existing.shared_food_id) {
+    await sharedFoodRequest(`/${encodeURIComponent(existing.shared_food_id)}`, { method: "DELETE" });
+  }
+
   const result = db.prepare("DELETE FROM meals WHERE id = ?").run(params.id);
   if (!result.changes) return sendJson(res, 404, { error: "Meal not found." });
   sendNoContent(res);
@@ -424,6 +611,11 @@ const server = http.createServer(async (req, res) => {
     }
   }
 });
+
+if (hasSharedFoodLibrary()) {
+  await syncMealsFromSharedFoodLibrary();
+  console.log(`Shared meal library connected at ${sharedFoodApiUrl}`);
+}
 
 server.listen(port, () => {
   console.log(`Meals and Grocery Dashboard running at http://localhost:${port}`);
