@@ -1,5 +1,8 @@
 const state = {
   meals: [],
+  sides: [],
+  editingKind: "meal",
+  sideSearch: "",
   activeList: null,
   history: [],
   editingMealId: null,
@@ -22,6 +25,8 @@ const elements = {
   csvInput: $("#csvInput"),
   mealSearch: $("#mealSearch"),
   mealLibrary: $("#mealLibrary"),
+  sideLibrary: $("#sideLibrary"),
+  sideSearch: $("#sideSearch"),
   plannedMeals: $("#plannedMeals"),
   hadMeals: $("#hadMeals"),
   groceryList: $("#groceryList"),
@@ -48,7 +53,7 @@ function formatDate(value) {
 function caloriesText(meal) {
   const parts = [];
   if (meal.calories !== null && meal.calories !== undefined) parts.push(`${meal.calories} cal total`);
-  if (meal.caloriesPerServing) parts.push(`${meal.caloriesPerServing} cal/serving`);
+  if (meal.caloriesPerServing !== null && meal.caloriesPerServing !== undefined) parts.push(`${meal.caloriesPerServing} cal/serving`);
   if (meal.servings) parts.push(`${meal.servings} servings`);
   if (meal.servingSize) parts.push(`Serving: ${meal.servingSize}`);
   return parts;
@@ -93,11 +98,15 @@ function mealPayloadFromForm() {
   };
 }
 
-function resetForm() {
+function resetForm(kind = "meal") {
   state.editingMealId = null;
+  state.editingKind = kind;
   elements.form.reset();
+  elements.form.querySelector(`[name="entryType"][value="${kind}"]`).checked = true;
   elements.mealId.value = "";
-  elements.formTitle.textContent = "Add a meal";
+  elements.formTitle.textContent = `Add a ${kind}`;
+  $("#foodNameLabel").textContent = kind === "side" ? "Side name" : "Meal name";
+  $("#saveFoodBtn").textContent = `Save ${kind}`;
   elements.cancelEditBtn.classList.add("hidden");
   updateCaloriePreview();
 }
@@ -119,9 +128,9 @@ function renderMealCard(meal, context = "library", listMeal = null) {
     : `<p class="ingredients">No ingredients listed.</p>`;
 
   let actions = "";
-  if (context === "library") {
+  if (context === "library" || context === "side-library") {
     actions = `
-      <button class="ghost" data-action="plan" data-id="${meal.id}">Add</button>
+      ${context === "library" ? `<button class="ghost" data-action="plan" data-id="${meal.id}">Add</button>` : ""}
       <button class="ghost" data-action="edit" data-id="${meal.id}">Edit</button>
       <button class="ghost danger" data-action="delete" data-id="${meal.id}">Remove</button>
     `;
@@ -147,8 +156,40 @@ function renderMealCard(meal, context = "library", listMeal = null) {
         ${ingredients}
       </div>
       <div class="card-actions">${actions}</div>
+      ${listMeal ? `<div class="meal-extras">${renderAttachedSides(listMeal, context !== "history")}</div>` : ""}
     </article>
   `;
+}
+
+function renderAttachedSides(item, editable) {
+  const attached = item.sides || [];
+  const keys = new Set(attached.map((side) => side.sharedFoodId));
+  const available = state.sides.filter((side) => !keys.has(side.sharedFoodId));
+  return `
+    ${attached.length ? `<ul class="attached-sides">${attached.map((side) => `
+      <li>
+        <div><strong>${escapeHtml(side.name)}</strong>
+          <p class="side-meta">${escapeHtml(caloriesText(side).join(" | ")) || "No calorie details"}</p>
+          ${side.ingredients.length ? `<p class="side-meta">${escapeHtml(side.ingredients.join(", "))}</p>` : ""}
+        </div>
+        ${editable ? `<button class="ghost danger" type="button" data-action="remove-side" data-list-meal-id="${item.listMealId}" data-attachment-id="${side.attachmentId}" aria-label="Remove ${escapeHtml(side.name)} from ${escapeHtml(item.meal.name)}">Remove side</button>` : ""}
+      </li>`).join("")}</ul>
+      <p class="combined-total"><strong>${item.caloriesIncomplete ? "Known calories" : "Combined total"}: ${item.totalCalories} cal</strong>${item.caloriesIncomplete ? " (some calories not provided)" : ""}</p>` : ""}
+    ${editable && available.length ? `<div class="side-picker">
+      <select aria-label="Side for ${escapeHtml(item.meal.name)}" id="sideFor-${item.listMealId}">
+        <option value="">Choose a side</option>
+        ${available.map((side) => `<option value="${side.id}">${escapeHtml(side.name)}</option>`).join("")}
+      </select>
+      <button class="ghost" type="button" data-action="attach-side" data-list-meal-id="${item.listMealId}">Add side</button>
+    </div>` : ""}`;
+}
+
+function renderSides() {
+  const search = state.sideSearch.toLowerCase();
+  const foods = state.sides.filter((side) => !search || `${side.name} ${side.ingredients.join(" ")}`.toLowerCase().includes(search));
+  elements.sideLibrary.innerHTML = foods.length
+    ? foods.map((side) => renderMealCard(side, "side-library")).join("")
+    : `<div class="empty">${search ? "No matching sides." : "No sides yet."}</div>`;
 }
 
 function renderMeals() {
@@ -199,20 +240,16 @@ function renderActiveList() {
 function renderHistory() {
   elements.historyList.innerHTML = state.history.length
     ? state.history.map((list) => {
-      const plannedMeals = list.meals
-        .filter((item) => item.status !== "had")
-        .map((item) => item.meal.name)
-        .join(", ") || "None";
-      const hadMeals = list.meals
-        .filter((item) => item.status === "had")
-        .map((item) => item.meal.name)
-        .join(", ") || "None";
+      const historyMeals = (had) => list.meals.filter((item) => (item.status === "had") === had)
+        .map((item) => renderMealCard(item.meal, "history", item)).join("") || "<p>None</p>";
       return `
         <details class="history-card">
           <summary>${formatDate(list.startDate)} - ${formatDate(list.endDate)}</summary>
           <div class="history-body">
-            <p><strong>Planned, not had:</strong> ${escapeHtml(plannedMeals)}</p>
-            <p><strong>Had:</strong> ${escapeHtml(hadMeals)}</p>
+            <h3>Planned, not had</h3>
+            <div class="history-meals">${historyMeals(false)}</div>
+            <h3>Had</h3>
+            <div class="history-meals">${historyMeals(true)}</div>
             <p><strong>Grocery items:</strong> ${list.groceryItems.length ? escapeHtml(list.groceryItems.map((item) => item.name).join(", ")) : "None listed"}</p>
             <button class="ghost danger" data-action="delete-history" data-list-id="${list.id}">Remove list</button>
           </div>
@@ -224,6 +261,7 @@ function renderHistory() {
 
 function render() {
   renderMeals();
+  renderSides();
   renderActiveList();
   renderHistory();
 }
@@ -231,6 +269,7 @@ function render() {
 async function loadState() {
   const data = await api("/api/state");
   state.meals = data.meals;
+  state.sides = data.sides || [];
   state.activeList = data.activeList;
   render();
 }
@@ -240,9 +279,10 @@ async function loadHistory() {
   renderHistory();
 }
 
-function editMeal(id) {
-  const meal = state.meals.find((item) => item.id === id);
+function editMeal(id, kind = "meal") {
+  const meal = (kind === "side" ? state.sides : state.meals).find((item) => item.id === id);
   if (!meal) return;
+  resetForm(kind);
   state.editingMealId = id;
   elements.mealId.value = id;
   elements.mealName.value = meal.name;
@@ -250,10 +290,11 @@ function editMeal(id) {
   elements.mealCalories.value = meal.calories ?? "";
   elements.mealServings.value = meal.servings ?? "";
   elements.mealServingSize.value = meal.servingSize ?? "";
-  elements.formTitle.textContent = "Edit meal";
+  elements.formTitle.textContent = `Edit ${kind}`;
   elements.cancelEditBtn.classList.remove("hidden");
   updateCaloriePreview();
   elements.mealName.focus();
+  elements.form.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function parseCsv(text) {
@@ -339,22 +380,69 @@ function parseCsv(text) {
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const payload = mealPayloadFromForm();
-  if (!payload.name) return showToast("Meal name is required.");
+  const kind = state.editingKind;
+  const endpoint = kind === "side" ? "/api/sides" : "/api/meals";
+  if (!payload.name) return showToast(`${kind === "side" ? "Side" : "Meal"} name is required.`);
 
   try {
     if (state.editingMealId) {
-      await api(`/api/meals/${state.editingMealId}`, { method: "PUT", body: JSON.stringify(payload) });
-      showToast("Meal updated.");
+      await api(`${endpoint}/${state.editingMealId}`, { method: "PUT", body: JSON.stringify(payload) });
+      showToast(kind === "side" ? "Side updated." : "Meal updated.");
     } else {
-      await api("/api/meals", { method: "POST", body: JSON.stringify(payload) });
-      showToast("Meal added.");
+      await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
+      showToast(kind === "side" ? "Side added." : "Meal added.");
     }
-    resetForm();
+    resetForm(kind);
     await loadState();
   } catch (error) {
     showToast(error.message);
   }
 });
+
+elements.form.querySelectorAll('[name="entryType"]').forEach((input) => {
+  input.addEventListener("change", () => resetForm(input.value));
+});
+$("#newSideBtn").addEventListener("click", () => {
+  resetForm("side");
+  elements.mealName.focus();
+  elements.form.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+elements.sideSearch.addEventListener("input", () => {
+  state.sideSearch = elements.sideSearch.value;
+  renderSides();
+});
+elements.sideLibrary.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+  const id = Number(button.dataset.id);
+  if (button.dataset.action === "edit") return editMeal(id, "side");
+  if (button.dataset.action !== "delete" || !confirm("Remove this side from the shared library? Sides already attached to meals will be kept.")) return;
+  button.disabled = true;
+  try {
+    await api(`/api/sides/${id}`, { method: "DELETE" });
+    await loadState();
+    if (state.editingKind === "side" && state.editingMealId === id) resetForm("side");
+    showToast("Side removed from library.");
+  } catch (error) { showToast(error.message); }
+  finally { button.disabled = false; }
+});
+
+async function changeAttachedSide(button) {
+  const id = Number(button.dataset.listMealId);
+  const path = `/api/list/meals/${id}/sides`;
+  button.disabled = true;
+  try {
+    if (button.dataset.action === "attach-side") {
+      const sideId = Number(document.getElementById(`sideFor-${id}`).value);
+      if (!sideId) return showToast("Choose a side first.");
+      state.activeList = await api(path, { method: "POST", body: JSON.stringify({ sideId }) });
+    } else {
+      state.activeList = await api(`${path}/${button.dataset.attachmentId}`, { method: "DELETE" });
+    }
+    render();
+  } catch (error) { showToast(error.message); }
+  finally { button.disabled = false; }
+}
 
 elements.mealLibrary.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
@@ -382,6 +470,7 @@ elements.mealLibrary.addEventListener("click", async (event) => {
 elements.plannedMeals.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
+  if (["attach-side", "remove-side"].includes(button.dataset.action)) return changeAttachedSide(button);
   const id = Number(button.dataset.listMealId);
 
   try {
@@ -406,6 +495,7 @@ elements.plannedMeals.addEventListener("click", async (event) => {
 elements.hadMeals.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
+  if (["attach-side", "remove-side"].includes(button.dataset.action)) return changeAttachedSide(button);
   const id = Number(button.dataset.listMealId);
 
   try {
@@ -490,7 +580,7 @@ document.addEventListener("click", (event) => {
   button.textContent = isCollapsed ? "Expand" : "Collapse";
 });
 
-elements.cancelEditBtn.addEventListener("click", resetForm);
+elements.cancelEditBtn.addEventListener("click", () => resetForm(state.editingKind));
 elements.refreshHistoryBtn.addEventListener("click", loadHistory);
 elements.mealSearch.addEventListener("input", () => {
   state.search = elements.mealSearch.value;

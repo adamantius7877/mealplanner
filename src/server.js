@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { createSides } from "./sides.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,6 +42,16 @@ fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new DatabaseSync(dbPath);
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA foreign_keys = ON");
+
+// VACUUM INTO includes committed WAL data and finishes before any schema changes.
+if (db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meals'").get()
+    && !db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'list_meal_sides'").get()) {
+  const backupDir = path.join(path.dirname(dbPath), "backups");
+  fs.mkdirSync(backupDir, { recursive: true });
+  const backupPath = path.join(backupDir, `before-sides-${Date.now()}.db`);
+  db.prepare("VACUUM INTO ?").run(backupPath);
+  console.log("Saved database backup before sides upgrade.");
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS meals (
@@ -83,6 +94,7 @@ db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_meals_shared_food_id ON meals(sha
 
 const isoDate = () => new Date().toISOString();
 const hasSharedFoodLibrary = () => Boolean(sharedFoodApiUrl);
+const sides = createSides({ db, hasSharedFoodLibrary, sharedFoodRequest, validateMealPayload, mealFromRow, mealFromSharedFood });
 
 function ensureActiveList() {
   let active = db.prepare("SELECT * FROM meal_lists WHERE end_date IS NULL ORDER BY id DESC LIMIT 1").get();
@@ -117,7 +129,7 @@ function mealFromRow(row) {
     servings,
     servingSize: row.serving_size || "",
     sharedFoodId: row.shared_food_id || null,
-    caloriesPerServing: calories && servings ? Math.round((calories / servings) * 10) / 10 : null,
+    caloriesPerServing: calories !== null && servings ? Math.round((calories / servings) * 10) / 10 : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -306,25 +318,33 @@ function getMealsForList(listId) {
     JOIN meals ON meals.id = list_meals.meal_id
     WHERE list_meals.list_id = ?
     ORDER BY list_meals.status ASC, list_meals.added_at ASC
-  `).all(listId).map((row) => ({
-    listMealId: row.listMealId,
-    status: row.status,
-    addedAt: row.addedAt,
-    hadAt: row.hadAt,
-    meal: mealFromRow(row)
-  }));
+  `).all(listId).map((row) => {
+    const meal = mealFromRow(row);
+    const attachedSides = sides.forMeal(row.listMealId);
+    return {
+      listMealId: row.listMealId,
+      status: row.status,
+      addedAt: row.addedAt,
+      hadAt: row.hadAt,
+      meal,
+      sides: attachedSides,
+      ...sides.totals(meal, attachedSides)
+    };
+  });
 }
 
 function groceryItems(listMeals) {
   const counts = new Map();
   for (const item of listMeals) {
     if (item.status === "had") continue;
-    for (const ingredient of item.meal.ingredients) {
-      const key = ingredient.toLowerCase();
-      const current = counts.get(key) || { name: ingredient, count: 0, meals: [] };
-      current.count += 1;
-      current.meals.push(item.meal.name);
-      counts.set(key, current);
+    for (const food of [item.meal, ...(item.sides || [])]) {
+      for (const ingredient of food.ingredients) {
+        const key = ingredient.toLowerCase();
+        const current = counts.get(key) || { name: ingredient, count: 0, meals: [] };
+        current.count += 1;
+        current.meals.push(food === item.meal ? item.meal.name : `${item.meal.name} - ${food.name}`);
+        counts.set(key, current);
+      }
     }
   }
   return [...counts.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -422,11 +442,13 @@ function matchRoute(method, pathname, pattern) {
 
 const routes = [];
 const route = (method, pathPattern, handler) => routes.push({ method, path: pathPattern, handler });
+sides.registerRoutes({ route, sendJson, sendNoContent, readJson, activeListDetails });
 
 route("GET", "/api/state", async (_req, res) => {
   const meals = await getMealLibrary();
+  const sideLibrary = await sides.library();
   const activeList = activeListDetails();
-  sendJson(res, 200, { meals, activeList });
+  sendJson(res, 200, { meals, sides: sideLibrary, activeList });
 });
 
 route("GET", "/api/history", async (_req, res) => {
@@ -578,7 +600,7 @@ route("DELETE", "/api/list/meals/:listMealId", (_req, res, params) => {
 route("POST", "/api/list/next", (_req, res) => {
   const active = ensureActiveList();
   const unfinishedMeals = db.prepare(`
-    SELECT meal_id
+    SELECT id, meal_id
     FROM list_meals
     WHERE list_id = ? AND status != 'had'
     ORDER BY added_at ASC
@@ -590,7 +612,8 @@ route("POST", "/api/list/next", (_req, res) => {
     const result = db.prepare("INSERT INTO meal_lists (start_date) VALUES (?)").run(isoDate());
     const addMeal = db.prepare("INSERT INTO list_meals (list_id, meal_id) VALUES (?, ?)");
     for (const item of unfinishedMeals) {
-      addMeal.run(result.lastInsertRowid, item.meal_id);
+      const nextMeal = addMeal.run(result.lastInsertRowid, item.meal_id);
+      sides.copyAttachments(item.id, nextMeal.lastInsertRowid);
     }
     db.exec("COMMIT");
   } catch (error) {
@@ -631,5 +654,5 @@ if (hasSharedFoodLibrary()) {
 }
 
 server.listen(port, () => {
-  console.log(`Meals and Grocery Dashboard running at http://localhost:${port}`);
+  console.log(`Meals and Grocery Dashboard running at http://localhost:${server.address().port}`);
 });

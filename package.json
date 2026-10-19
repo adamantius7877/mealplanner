@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --no-warnings --test tests/*.test.js",
     "start": "node --no-warnings src/server.js",
     "dev": "node --no-warnings --watch src/server.js"
   },

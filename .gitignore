@@ -1,4 +1,6 @@
 data/
+backups/
+.scratch/
 .env
 node_modules/
 smoke-data/

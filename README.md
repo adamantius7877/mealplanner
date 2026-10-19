@@ -8,6 +8,9 @@ It is designed to run in Docker on another machine. Meal lists and list history 
 
 - Add meals with a required name.
 - Share the reusable meal library with CaloriesDashboard.
+- Create, edit, and remove shared sides with their own calories, servings, serving size, and ingredients.
+- Attach or remove sides on an individual meal in the current list, including meals marked Had.
+- See individual meal/side calorie details and a combined total without selecting portions.
 - Optionally add ingredients, total calories, number of servings, and a text serving size such as "one cup" or "half the total."
 - See calories for the whole meal and calculated calories per serving.
 - Edit or remove meals from the main meal library.
@@ -16,7 +19,7 @@ It is designed to run in Docker on another machine. Meal lists and list history 
 - Mark meals as had/done for the current period without deleting them from the main meal library.
 - See meals marked as had for the current period and move them back to "Meals to Have."
 - Collapse and expand the meal, grocery, history, and library lists.
-- Start the next list, which closes the current list and creates a fresh active list.
+- Start the next list, keeping unfinished meals and their attached sides in both the previous and next lists.
 - Automatically records list start and end dates.
 - View previous lists and the time periods they covered.
 - Remove previous lists without deleting meals from the main meal library.
@@ -116,6 +119,36 @@ After migration:
 - The All meals library is read from the shared food library.
 - Adding, editing, importing, or removing meals writes to the shared food library.
 - Existing current and previous lists keep working because Mealplanner preserves local meal references for list history.
+
+## Sides
+
+Use **All sides** to manage reusable sides. Choose **Side** in the add/edit form to save one. Meals and sides have separate libraries, and both are shared with CaloriesDashboard. Existing meals remain meals after the upgrade.
+
+After adding a meal to the current list, choose a side on that meal and select **Add side**. Each side can be attached once to each planned meal. The same side can be used on multiple meals. **Remove side** removes only that attachment, while **Remove** in All sides deletes the shared library item.
+
+Each attachment records the side's name, total calories, number of servings, text serving size, and ingredients at the time it is attached. Editing or deleting the side in either app does not change existing attachments. Remove and re-add a side to use its latest details on a current meal. Previous lists are read-only for side attachments.
+
+The combined calorie total adds the meal's total calories and each attached side's total calories. Serving counts and calories per serving are displayed individually; no portion multiplier is applied. If local-only entries have missing calories, the summary labels the sum as known calories. Shared entries with blank or zero calories continue to use the 1-calorie fallback.
+
+Side ingredients are included in groceries while the meal is planned, disappear when the meal is marked Had, and return if it is unmarked. Attached sides carry forward unchanged with unfinished meals when starting the next list. Previous lists retain their own copies.
+
+### Upgrade Order And Backups
+
+1. Update and deploy CaloriesDashboard first. Its additive `004_food_sides.sql` migration permits `type=side`, and its deployment script backs up an existing running PostgreSQL database before rebuilding.
+2. Update and deploy Mealplanner with `git pull` and `.\deploy.ps1`. The host port remains `3002`, and the existing `meals-data` volume is reused.
+3. Refresh Mealplanner. Meals stay in All meals; shared sides appear in All sides.
+
+Mealplanner checks the shared API's advertised Side support before uploading a side. If the CaloriesDashboard update has not been deployed, it reports an error before posting instead of accidentally saving a side as a meal.
+
+Before the first sides schema upgrade on an existing Mealplanner database, the app automatically saves a consistent SQLite backup (including committed WAL data) under `/data/backups/before-sides-TIMESTAMP.db`. A failed backup stops startup before schema changes. The upgrade only creates the `sides` and `list_meal_sides` tables; it does not replace or clear meals, lists, or list entries. Subsequent restarts reuse these tables and do not repeat the backup.
+
+Copy these backups to the host after deployment:
+
+```powershell
+docker cp meals-and-grocery-dashboard:/data/backups ./backups
+```
+
+Keep both Mealplanner SQLite backups and CaloriesDashboard PostgreSQL backups: the shared food library is stored in PostgreSQL, while attachment snapshots and lists are stored in SQLite. Normal redeploys do not remove either volume.
 
 ## Data Persistence
 

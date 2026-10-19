@@ -87,6 +87,18 @@
         </section>
       </section>
 
+      <section class="panel sides-panel">
+        <div class="panel-heading">
+          <h2>All sides</h2>
+          <div class="panel-actions">
+            <input id="sideSearch" class="search" type="search" placeholder="Search sides" aria-label="Search sides">
+            <button id="newSideBtn" class="ghost" type="button">Add a side</button>
+            <button class="ghost collapse-toggle" type="button" data-collapse-target="sideLibrary" aria-expanded="true">Collapse</button>
+          </div>
+        </div>
+        <div id="sideLibrary" class="meal-list"></div>
+      </section>
+
       <section class="panel meal-form-panel">
         <div class="panel-heading">
           <h2 id="formTitle">Add a meal</h2>
@@ -94,8 +106,13 @@
         </div>
         <form id="mealForm">
           <input type="hidden" id="mealId">
+          <fieldset class="food-kind">
+            <legend>Type</legend>
+            <label><input type="radio" name="entryType" value="meal" checked> Meal</label>
+            <label><input type="radio" name="entryType" value="side"> Side</label>
+          </fieldset>
           <label>
-            Meal name
+            <span id="foodNameLabel">Meal name</span>
             <input id="mealName" name="name" type="text" autocomplete="off" required>
           </label>
           <label>
@@ -117,7 +134,7 @@
             <input id="mealServingSize" name="servingSize" type="text" placeholder="One cup, half the total, two tacos">
           </label>
           <p id="caloriePreview" class="hint">Calories per serving will appear here.</p>
-          <button class="primary wide" type="submit">Save meal</button>
+          <button id="saveFoodBtn" class="primary wide" type="submit">Save meal</button>
         </form>
 
         <div class="import-box">
