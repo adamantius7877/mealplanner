@@ -10,7 +10,7 @@ It is designed to run in Docker on another machine. Meal lists and list history 
 - Share the reusable meal library with CaloriesDashboard.
 - Create, edit, and remove shared sides with their own calories, servings, serving size, and ingredients.
 - Attach or remove sides on an individual meal in the current list, including meals marked Had.
-- See individual meal/side calorie details and a combined total without selecting portions.
+- See individual meal/side calorie details and a combined total per serving without selecting portions.
 - Optionally add ingredients, total calories, number of servings, and a text serving size such as "one cup" or "half the total."
 - See calories for the whole meal and calculated calories per serving.
 - Edit or remove meals from the main meal library.
@@ -128,7 +128,7 @@ After adding a meal to the current list, choose a side on that meal and select *
 
 Each attachment records the side's name, total calories, number of servings, text serving size, and ingredients at the time it is attached. Editing or deleting the side in either app does not change existing attachments. Remove and re-add a side to use its latest details on a current meal. Previous lists are read-only for side attachments.
 
-The combined calorie total adds the meal's total calories and each attached side's total calories. Serving counts and calories per serving are displayed individually; no portion multiplier is applied. If local-only entries have missing calories, the summary labels the sum as known calories. Shared entries with blank or zero calories continue to use the 1-calorie fallback.
+**Combined Total Per Serving** adds one serving of the meal and one serving of each attached side. Each item's contribution is its total calories divided by its own serving count; if no serving count is provided, its listed calories count as one serving. The sum is rounded to one decimal place after adding all contributions. Individual totals, serving descriptions, and calories per serving remain visible. If local-only entries have missing calories, the summary notes that only known calories are included. Shared entries with blank or zero calories continue to use the 1-calorie fallback. This is calculated from existing details without changing stored meals or side snapshots, including those in previous lists.
 
 Side ingredients are included in groceries while the meal is planned, disappear when the meal is marked Had, and return if it is unmarked. Attached sides carry forward unchanged with unfinished meals when starting the next list. Previous lists retain their own copies.
 

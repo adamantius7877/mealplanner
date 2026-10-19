@@ -174,7 +174,7 @@ function renderAttachedSides(item, editable) {
         </div>
         ${editable ? `<button class="ghost danger" type="button" data-action="remove-side" data-list-meal-id="${item.listMealId}" data-attachment-id="${side.attachmentId}" aria-label="Remove ${escapeHtml(side.name)} from ${escapeHtml(item.meal.name)}">Remove side</button>` : ""}
       </li>`).join("")}</ul>
-      <p class="combined-total"><strong>${item.caloriesIncomplete ? "Known calories" : "Combined total"}: ${item.totalCalories} cal</strong>${item.caloriesIncomplete ? " (some calories not provided)" : ""}</p>` : ""}
+      <p class="combined-total"><strong>Combined Total Per Serving: ${item.totalCaloriesPerServing} cal</strong>${item.caloriesIncomplete ? " (known calories only; some calories not provided)" : ""}</p>` : ""}
     ${editable && available.length ? `<div class="side-picker">
       <select aria-label="Side for ${escapeHtml(item.meal.name)}" id="sideFor-${item.listMealId}">
         <option value="">Choose a side</option>

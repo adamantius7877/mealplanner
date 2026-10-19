@@ -92,6 +92,10 @@ export function createSides({ db, hasSharedFoodLibrary, sharedFoodRequest, valid
     const foods = [meal, ...attachments];
     return {
       totalCalories: Math.round(foods.reduce((sum, food) => sum + (food.calories ?? 0), 0) * 10) / 10,
+      totalCaloriesPerServing: Math.round(foods.reduce((sum, food) => {
+        const servings = food.servings > 0 ? food.servings : 1;
+        return sum + (food.calories ?? 0) / servings;
+      }, 0) * 10) / 10,
       caloriesIncomplete: foods.some((food) => food.calories == null)
     };
   }

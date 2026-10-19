@@ -161,12 +161,14 @@ test("side CRUD, attachment isolation, totals, groceries, history and carry-forw
   assert.equal(planned.sides.length, 1);
   assert.equal(planned.sides[0].caloriesPerServing, 100);
   assert.equal(planned.totalCalories, 1000);
+  assert.equal(planned.totalCaloriesPerServing, 300);
   assert.equal(list.meals.find((item) => item.listMealId === otherId).sides.length, 0);
   assert.equal(list.groceryItems.find((item) => item.name === "Salt").count, 2);
   assert.ok(list.groceryItems.some((item) => item.name === "Rice"));
   list = await req(attach, "POST", { sideId: veg.id }, 201);
   planned = list.meals.find((item) => item.listMealId === mainId);
   assert.equal(planned.totalCalories, 1080);
+  assert.equal(planned.totalCaloriesPerServing, 380);
   const vegAttachment = planned.sides.find((item) => item.id === veg.id).attachmentId;
   await req(`/api/list/meals/${otherId}/sides/${vegAttachment}`, "DELETE", undefined, 404);
   list = await req(`${attach}/${vegAttachment}`, "DELETE");
@@ -185,9 +187,11 @@ test("side CRUD, attachment isolation, totals, groceries, history and carry-forw
   assert.equal(next.meals.length, 1);
   assert.equal(next.meals[0].sides[0].name, "Rice");
   assert.equal(next.meals[0].totalCalories, 1000);
+  assert.equal(next.meals[0].totalCaloriesPerServing, 300);
   const history = await req("/api/history");
   const saved = history[0].meals.find((item) => item.listMealId === mainId);
   assert.equal(saved.sides[0].name, "Rice");
+  assert.equal(saved.totalCaloriesPerServing, 300);
   assert.equal(history[0].meals.find((item) => item.listMealId === otherId).sides[0].name, "Peas");
   await req(attach, "POST", { sideId: veg.id }, 404);
   await req(`${attach}/${saved.sides[0].attachmentId}`, "DELETE", undefined, 404);
@@ -209,6 +213,27 @@ test("a failed pre-upgrade backup prevents schema changes", async (t) => {
   assert.equal(saved.prepare("SELECT name FROM meals").get().name, "Keep this");
   assert.equal(saved.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('sides', 'list_meal_sides', 'meal_lists')").get().n, 0);
   saved.close();
+});
+
+test("combined per-serving calories use each item's own serving count and round the sum once", async (t) => {
+  const dir = await workspace(t);
+  const app = await start(t, dir);
+  const meal = await app.request("/api/meals", "POST", { name: "Main", calories: 1, servings: 3 }, 201);
+  const side = await app.request("/api/sides", "POST", { name: "Side", calories: 1, servings: 3 }, 201);
+  let list = await app.request("/api/list/meals", "POST", { mealId: meal.id }, 201);
+  const endpoint = `/api/list/meals/${list.meals[0].listMealId}/sides`;
+  list = await app.request(endpoint, "POST", { sideId: side.id }, 201);
+  assert.equal(list.meals[0].totalCaloriesPerServing, 0.7);
+  const noCount = await app.request("/api/sides", "POST", { name: "No serving count", calories: 40 }, 201);
+  list = await app.request(endpoint, "POST", { sideId: noCount.id }, 201);
+  assert.equal(list.meals[0].totalCaloriesPerServing, 40.7);
+  const fractional = await app.request("/api/sides", "POST", { name: "Half serving batch", calories: 10, servings: 0.5 }, 201);
+  list = await app.request(endpoint, "POST", { sideId: fractional.id }, 201);
+  assert.equal(list.meals[0].totalCaloriesPerServing, 60.7);
+  const unknown = await app.request("/api/sides", "POST", { name: "Calories unknown" }, 201);
+  list = await app.request(endpoint, "POST", { sideId: unknown.id }, 201);
+  assert.equal(list.meals[0].totalCaloriesPerServing, 60.7);
+  assert.equal(list.meals[0].caloriesIncomplete, true);
 });
 
 test("local sides migrate to shared storage without changing attached snapshots", async (t) => {
