@@ -13,7 +13,10 @@
           <p class="eyebrow">Meal planning</p>
           <h1>Meals and Grocery Dashboard</h1>
         </div>
-        <button id="nextListBtn" class="primary">Start next list</button>
+        <div class="panel-actions">
+          <button id="quickAddMealBtn" class="ghost" type="button">Add a meal</button>
+          <button id="nextListBtn" class="primary">Start next list</button>
+        </div>
       </section>
 
       <section class="summary-grid" aria-label="Current list summary">
@@ -80,6 +83,9 @@
             </div>
             <div class="panel-actions">
               <input id="mealSearch" class="search" type="search" placeholder="Search meals">
+              <button id="newMealBtn" class="ghost" type="button">Add a meal</button>
+              <button id="importMealsBtn" class="ghost" type="button">Import CSV</button>
+              <input id="csvInput" class="hidden" type="file" accept=".csv,text/csv" aria-label="Import meals CSV">
               <button class="ghost collapse-toggle" type="button" data-collapse-target="mealLibrary" aria-expanded="true">Collapse</button>
             </div>
           </div>
@@ -99,10 +105,25 @@
         <div id="sideLibrary" class="meal-list"></div>
       </section>
 
-      <section class="panel meal-form-panel">
+      <section class="panel history-panel">
         <div class="panel-heading">
+          <div class="panel-title">
+            <h2>Previous lists</h2>
+          </div>
+          <div class="panel-actions">
+            <button id="refreshHistoryBtn" class="ghost">Refresh</button>
+            <button class="ghost collapse-toggle" type="button" data-collapse-target="historyList" aria-expanded="true">Collapse</button>
+          </div>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+    </main>
+
+    <dialog id="foodDialog" class="food-dialog" aria-labelledby="formTitle">
+      <div class="dialog-content">
+        <div class="dialog-heading">
           <h2 id="formTitle">Add a meal</h2>
-          <button id="cancelEditBtn" class="ghost hidden">Cancel edit</button>
+          <button id="closeFoodDialogBtn" class="ghost dialog-close" type="button" aria-label="Close" title="Close">&times;</button>
         </div>
         <form id="mealForm">
           <input type="hidden" id="mealId">
@@ -113,7 +134,7 @@
           </fieldset>
           <label>
             <span id="foodNameLabel">Meal name</span>
-            <input id="mealName" name="name" type="text" autocomplete="off" required>
+            <input id="mealName" name="name" type="text" autocomplete="off" required autofocus>
           </label>
           <label>
             Ingredients
@@ -134,31 +155,14 @@
             <input id="mealServingSize" name="servingSize" type="text" placeholder="One cup, half the total, two tacos">
           </label>
           <p id="caloriePreview" class="hint">Calories per serving will appear here.</p>
-          <button id="saveFoodBtn" class="primary wide" type="submit">Save meal</button>
+          <p id="foodFormError" class="form-error hidden" role="alert"></p>
+          <div class="dialog-actions">
+            <button id="cancelEditBtn" class="ghost" type="button">Cancel</button>
+            <button id="saveFoodBtn" class="primary" type="submit">Save meal</button>
+          </div>
         </form>
-
-        <div class="import-box">
-          <div>
-            <h3>Import base meals</h3>
-            <p>CSV columns: name, ingredients, calories, servings, serving_size.</p>
-          </div>
-          <input id="csvInput" type="file" accept=".csv,text/csv">
-        </div>
-      </section>
-
-      <section class="panel history-panel">
-        <div class="panel-heading">
-          <div class="panel-title">
-            <h2>Previous lists</h2>
-          </div>
-          <div class="panel-actions">
-            <button id="refreshHistoryBtn" class="ghost">Refresh</button>
-            <button class="ghost collapse-toggle" type="button" data-collapse-target="historyList" aria-expanded="true">Collapse</button>
-          </div>
-        </div>
-        <div id="historyList" class="history-list"></div>
-      </section>
-    </main>
+      </div>
+    </dialog>
 
     <div id="toast" role="status" aria-live="polite"></div>
     <script src="/app.js" type="module"></script>

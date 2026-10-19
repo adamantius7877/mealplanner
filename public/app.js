@@ -2,6 +2,7 @@ const state = {
   meals: [],
   sides: [],
   editingKind: "meal",
+  savingFood: false,
   sideSearch: "",
   activeList: null,
   history: [],
@@ -13,6 +14,8 @@ const $ = (selector) => document.querySelector(selector);
 
 const elements = {
   form: $("#mealForm"),
+  foodDialog: $("#foodDialog"),
+  foodFormError: $("#foodFormError"),
   mealId: $("#mealId"),
   mealName: $("#mealName"),
   mealIngredients: $("#mealIngredients"),
@@ -102,14 +105,60 @@ function resetForm(kind = "meal") {
   state.editingMealId = null;
   state.editingKind = kind;
   elements.form.reset();
+  elements.form.querySelector(".food-kind").hidden = false;
   elements.form.querySelector(`[name="entryType"][value="${kind}"]`).checked = true;
   elements.mealId.value = "";
   elements.formTitle.textContent = `Add a ${kind}`;
   $("#foodNameLabel").textContent = kind === "side" ? "Side name" : "Meal name";
   $("#saveFoodBtn").textContent = `Save ${kind}`;
-  elements.cancelEditBtn.classList.add("hidden");
+  elements.foodFormError.textContent = "";
+  elements.foodFormError.classList.add("hidden");
   updateCaloriePreview();
 }
+
+let dialogOrigin = null;
+
+function openFoodDialog() {
+  const origin = document.activeElement;
+  dialogOrigin = {
+    element: origin,
+    selector: origin?.dataset.action === "edit"
+      ? `#${state.editingKind === "side" ? "sideLibrary" : "mealLibrary"} button[data-action="edit"][data-id="${state.editingMealId}"]`
+      : null,
+    x: window.scrollX,
+    y: window.scrollY
+  };
+  document.body.classList.add("modal-open");
+  elements.foodDialog.showModal();
+  elements.mealName.focus({ preventScroll: true });
+}
+
+function restoreDialogOrigin() {
+  const origin = dialogOrigin;
+  const target = origin?.element?.isConnected ? origin.element : document.querySelector(origin?.selector || "#newMealBtn");
+  target?.focus({ preventScroll: true });
+  if (origin) window.scrollTo(origin.x, origin.y);
+}
+
+function setFoodSaving(saving) {
+  state.savingFood = saving;
+  elements.form.setAttribute("aria-busy", String(saving));
+  elements.foodDialog.querySelectorAll("input, textarea, button").forEach((input) => { input.disabled = saving; });
+}
+
+elements.foodDialog.addEventListener("cancel", (event) => {
+  if (state.savingFood) event.preventDefault();
+});
+elements.foodDialog.addEventListener("close", () => {
+  document.body.classList.remove("modal-open");
+  resetForm();
+  restoreDialogOrigin();
+});
+[$("#closeFoodDialogBtn"), elements.cancelEditBtn].forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!state.savingFood) elements.foodDialog.close();
+  });
+});
 
 function updateCaloriePreview() {
   const calories = Number(elements.mealCalories.value);
@@ -289,10 +338,9 @@ function editMeal(id, kind = "meal") {
   elements.mealServings.value = meal.servings ?? "";
   elements.mealServingSize.value = meal.servingSize ?? "";
   elements.formTitle.textContent = `Edit ${kind}`;
-  elements.cancelEditBtn.classList.remove("hidden");
+  elements.form.querySelector(".food-kind").hidden = true;
   updateCaloriePreview();
-  elements.mealName.focus();
-  elements.form.scrollIntoView({ behavior: "smooth", block: "center" });
+  openFoodDialog();
 }
 
 function parseCsv(text) {
@@ -377,11 +425,19 @@ function parseCsv(text) {
 
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (state.savingFood) return;
   const payload = mealPayloadFromForm();
   const kind = state.editingKind;
   const endpoint = kind === "side" ? "/api/sides" : "/api/meals";
-  if (!payload.name) return showToast(`${kind === "side" ? "Side" : "Meal"} name is required.`);
+  if (!payload.name) {
+    elements.foodFormError.textContent = `${kind === "side" ? "Side" : "Meal"} name is required.`;
+    elements.foodFormError.classList.remove("hidden");
+    elements.mealName.focus();
+    return;
+  }
 
+  elements.foodFormError.classList.add("hidden");
+  setFoodSaving(true);
   try {
     if (state.editingMealId) {
       await api(`${endpoint}/${state.editingMealId}`, { method: "PUT", body: JSON.stringify(payload) });
@@ -390,21 +446,29 @@ elements.form.addEventListener("submit", async (event) => {
       await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
       showToast(kind === "side" ? "Side added." : "Meal added.");
     }
-    resetForm(kind);
-    await loadState();
   } catch (error) {
-    showToast(error.message);
+    elements.foodFormError.textContent = error.message;
+    elements.foodFormError.classList.remove("hidden");
+    return;
+  } finally {
+    setFoodSaving(false);
   }
+  elements.foodDialog.close("saved");
+  try { await loadState(); }
+  catch (error) { showToast(error.message); }
+  restoreDialogOrigin();
 });
 
 elements.form.querySelectorAll('[name="entryType"]').forEach((input) => {
   input.addEventListener("change", () => resetForm(input.value));
 });
-$("#newSideBtn").addEventListener("click", () => {
-  resetForm("side");
-  elements.mealName.focus();
-  elements.form.scrollIntoView({ behavior: "smooth", block: "center" });
+[$("#quickAddMealBtn"), $("#newMealBtn"), $("#newSideBtn")].forEach((button) => {
+  button.addEventListener("click", () => {
+    resetForm(button.id === "newSideBtn" ? "side" : "meal");
+    openFoodDialog();
+  });
 });
+$("#importMealsBtn").addEventListener("click", () => elements.csvInput.click());
 elements.sideSearch.addEventListener("input", () => {
   state.sideSearch = elements.sideSearch.value;
   renderSides();
@@ -452,7 +516,7 @@ elements.mealLibrary.addEventListener("click", async (event) => {
       state.activeList = await api("/api/list/meals", { method: "POST", body: JSON.stringify({ mealId: id }) });
       showToast("Meal added to this list.");
     }
-    if (button.dataset.action === "edit") editMeal(id);
+    if (button.dataset.action === "edit") return editMeal(id);
     if (button.dataset.action === "delete") {
       if (!confirm("Remove this meal from the meal library?")) return;
       await api(`/api/meals/${id}`, { method: "DELETE" });
@@ -578,7 +642,6 @@ document.addEventListener("click", (event) => {
   button.textContent = isCollapsed ? "Expand" : "Collapse";
 });
 
-elements.cancelEditBtn.addEventListener("click", () => resetForm(state.editingKind));
 elements.refreshHistoryBtn.addEventListener("click", loadHistory);
 elements.mealSearch.addEventListener("input", () => {
   state.search = elements.mealSearch.value;

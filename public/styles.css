@@ -220,12 +220,31 @@ h3 {
   grid-template-columns: 1fr;
 }
 
-.meal-form-panel {
-  margin-bottom: 16px;
+html { scrollbar-gutter: stable; }
+body.modal-open { overflow: hidden; }
+.food-dialog {
+  width: min(600px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+.food-dialog::backdrop { background: rgba(51, 33, 42, 0.48); }
+.dialog-content { padding: 20px; }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.dialog-close { width: 40px; height: 40px; padding: 0; font-size: 1.5rem; flex-shrink: 0; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; }
+.dialog-actions button { min-width: 100px; }
+.form-error { margin: 0; color: var(--danger); overflow-wrap: anywhere; }
 
 .sides-panel { margin-bottom: 16px; }
 .food-kind { display: flex; gap: 20px; border: 0; margin: 0; padding: 0; }
+.food-kind[hidden] { display: none; }
 .food-kind legend { color: var(--muted); margin-bottom: 8px; }
 .food-kind label { display: flex; align-items: center; gap: 6px; }
 .food-kind input { width: 18px; height: 18px; accent-color: var(--accent); }

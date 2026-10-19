@@ -7,6 +7,7 @@ It is designed to run in Docker on another machine. Meal lists and list history 
 ## Features
 
 - Add meals with a required name.
+- Add and edit meals or sides in a dialog without leaving your place in the list.
 - Share the reusable meal library with CaloriesDashboard.
 - Create, edit, and remove shared sides with their own calories, servings, serving size, and ingredients.
 - Attach or remove sides on an individual meal in the current list, including meals marked Had.
@@ -122,7 +123,9 @@ After migration:
 
 ## Sides
 
-Use **All sides** to manage reusable sides. Choose **Side** in the add/edit form to save one. Meals and sides have separate libraries, and both are shared with CaloriesDashboard. Existing meals remain meals after the upgrade.
+Use **Add a meal** or **Add a side** to open the entry dialog. **Edit** opens the selected meal or side in the same dialog. Save applies changes; Cancel, Close, or Escape discards unsaved changes and returns you to your place in the list. Errors appear inside the dialog, and your entered details remain available to retry. Meals can also be imported using **Import CSV** beside All meals.
+
+Use **All sides** to manage reusable sides. Meals and sides have separate libraries, and both are shared with CaloriesDashboard. Existing meals remain meals after the upgrade.
 
 After adding a meal to the current list, choose a side on that meal and select **Add side**. Each side can be attached once to each planned meal. The same side can be used on multiple meals. **Remove side** removes only that attachment, while **Remove** in All sides deletes the shared library item.
 
