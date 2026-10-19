@@ -215,6 +215,38 @@ test("a failed pre-upgrade backup prevents schema changes", async (t) => {
   saved.close();
 });
 
+test("multiple sides can be attached together, extended, removed individually, and carried forward", async (t) => {
+  const dir = await workspace(t);
+  const app = await start(t, dir);
+  const meal = await app.request("/api/meals", "POST", { name: "Dinner", calories: 800, servings: 4 }, 201);
+  const rice = await app.request("/api/sides", "POST", { name: "Rice", calories: 200, servings: 2, ingredients: ["Rice"] }, 201);
+  const peas = await app.request("/api/sides", "POST", { name: "Peas", calories: 80, servings: 4, ingredients: ["Peas"] }, 201);
+  const carrots = await app.request("/api/sides", "POST", { name: "Carrots", calories: 60, servings: 2, ingredients: ["Carrots"] }, 201);
+  let list = await app.request("/api/list/meals", "POST", { mealId: meal.id }, 201);
+  const endpoint = `/api/list/meals/${list.meals[0].listMealId}/sides`;
+  list = await app.request(endpoint, "POST", { sideIds: [rice.id, peas.id, rice.id] }, 201);
+  assert.equal(list.meals[0].sides.length, 2);
+  assert.equal(list.meals[0].totalCaloriesPerServing, 320);
+  await app.request(endpoint, "POST", { sideIds: [] }, 400);
+  await app.request(endpoint, "POST", { sideIds: ["invalid"] }, 400);
+  await app.request(endpoint, "POST", { sideIds: [carrots.id, 99999] }, 404);
+  assert.equal((await app.request("/api/state")).activeList.meals[0].sides.length, 2);
+  list = await app.request(endpoint, "POST", { sideIds: [rice.id, carrots.id] }, 201);
+  assert.equal(list.meals[0].sides.length, 3);
+  assert.equal(list.meals[0].totalCaloriesPerServing, 350);
+  assert.deepEqual(list.groceryItems.map((item) => item.name), ["Carrots", "Peas", "Rice"]);
+  const peasAttachment = list.meals[0].sides.find((side) => side.id === peas.id);
+  list = await app.request(`${endpoint}/${peasAttachment.attachmentId}`, "DELETE");
+  assert.equal(list.meals[0].sides.length, 2);
+  assert.equal(list.meals[0].totalCaloriesPerServing, 330);
+  assert.deepEqual(list.groceryItems.map((item) => item.name), ["Carrots", "Rice"]);
+  const next = await app.request("/api/list/next", "POST", undefined, 201);
+  assert.equal(next.meals[0].sides.length, 2);
+  assert.equal(next.meals[0].totalCaloriesPerServing, 330);
+  const history = await app.request("/api/history");
+  assert.deepEqual(history[0].meals[0].sides.map((side) => side.name), ["Rice", "Carrots"]);
+});
+
 test("combined per-serving calories use each item's own serving count and round the sum once", async (t) => {
   const dir = await workspace(t);
   const app = await start(t, dir);

@@ -222,13 +222,14 @@ function renderAttachedSides(item, editable) {
         ${editable ? `<div class="card-actions"><button class="ghost danger" type="button" data-action="remove-side" data-list-meal-id="${item.listMealId}" data-attachment-id="${side.attachmentId}" aria-label="Remove ${escapeHtml(side.name)} from ${escapeHtml(item.meal.name)}">Remove side</button></div>` : ""}
       </li>`).join("")}</ul>
       <p class="combined-total"><strong>Combined Total Per Serving: ${item.totalCaloriesPerServing} cal</strong>${item.caloriesIncomplete ? " (known calories only; some calories not provided)" : ""}</p>` : ""}
-    ${editable && available.length ? `<div class="side-picker">
-      <select aria-label="Side for ${escapeHtml(item.meal.name)}" id="sideFor-${item.listMealId}">
-        <option value="">Choose a side</option>
-        ${available.map((side) => `<option value="${side.id}">${escapeHtml(side.name)}</option>`).join("")}
-      </select>
-      <button class="ghost" type="button" data-action="attach-side" data-list-meal-id="${item.listMealId}">Add side</button>
-    </div>` : ""}`;
+    ${editable && available.length ? `<details class="side-picker">
+      <summary>${attached.length ? "Add more sides" : "Add sides"}</summary>
+      <fieldset class="side-options" id="sideFor-${item.listMealId}">
+        <legend>Sides for ${escapeHtml(item.meal.name)}</legend>
+        ${available.map((side) => `<label><input type="checkbox" value="${side.id}"><span>${escapeHtml(side.name)}</span></label>`).join("")}
+      </fieldset>
+      <button class="ghost" type="button" data-action="attach-side" data-list-meal-id="${item.listMealId}">Add selected sides</button>
+    </details>` : ""}`;
 }
 
 function renderSides() {
@@ -495,9 +496,9 @@ async function changeAttachedSide(button) {
   button.disabled = true;
   try {
     if (button.dataset.action === "attach-side") {
-      const sideId = Number(document.getElementById(`sideFor-${id}`).value);
-      if (!sideId) return showToast("Choose a side first.");
-      state.activeList = await api(path, { method: "POST", body: JSON.stringify({ sideId }) });
+      const sideIds = [...document.getElementById(`sideFor-${id}`).querySelectorAll("input:checked")].map((input) => Number(input.value));
+      if (!sideIds.length) return showToast("Choose at least one side first.");
+      state.activeList = await api(path, { method: "POST", body: JSON.stringify({ sideIds }) });
     } else {
       state.activeList = await api(`${path}/${button.dataset.attachmentId}`, { method: "DELETE" });
     }

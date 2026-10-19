@@ -127,7 +127,7 @@ Use **Add a meal** or **Add a side** to open the entry dialog. **Edit** opens th
 
 Use **All sides** to manage reusable sides. Meals and sides have separate libraries, and both are shared with CaloriesDashboard. Existing meals remain meals after the upgrade.
 
-After adding a meal to the current list, choose a side on that meal and select **Add side**. Each side can be attached once to each planned meal. The same side can be used on multiple meals. **Remove side** removes only that attachment, while **Remove** in All sides deletes the shared library item.
+After adding a meal to the current list, open **Add sides** on that meal, check one or several sides, and select **Add selected sides**. Use **Add more sides** to attach additional sides later. Each side can be attached once to each planned meal, and the same side can be used on multiple meals. **Remove side** removes only that attachment, while **Remove** in All sides deletes the shared library item. Multiple selections are saved together; if a selected side is no longer available, no partial selection is added.
 
 Each attachment records the side's name, total calories, number of servings, text serving size, and ingredients at the time it is attached. Editing or deleting the side in either app does not change existing attachments. Remove and re-add a side to use its latest details on a current meal. Previous lists are read-only for side attachments.
 

@@ -137,14 +137,26 @@ export function createSides({ db, hasSharedFoodLibrary, sharedFoodRequest, valid
     });
     route("POST", "/api/list/meals/:listMealId/sides", async (req, res, params) => {
       const body = await readJson(req);
+      const ids = [...new Set((Array.isArray(body.sideIds) ? body.sideIds : [body.sideId]).map(Number))];
+      if (!ids.length || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+        throw error("Choose at least one valid side.");
+      }
       const available = await library();
       activeMeal(params.listMealId);
-      const food = available.find((item) => item.id === Number(body.sideId));
-      if (!food) throw error("Side is no longer available. Refresh the side library.", 404);
-      db.prepare(`
+      const foods = ids.map((id) => available.find((item) => item.id === id));
+      if (foods.some((food) => !food)) throw error("A selected side is no longer available. Refresh the side library.", 404);
+      const attach = db.prepare(`
         INSERT INTO list_meal_sides (list_meal_id, side_key, snapshot) VALUES (?, ?, ?)
         ON CONFLICT(list_meal_id, side_key) DO NOTHING
-      `).run(params.listMealId, food.sharedFoodId, JSON.stringify(food));
+      `);
+      db.exec("BEGIN");
+      try {
+        for (const food of foods) attach.run(params.listMealId, food.sharedFoodId, JSON.stringify(food));
+        db.exec("COMMIT");
+      } catch (failure) {
+        db.exec("ROLLBACK");
+        throw failure;
+      }
       sendJson(res, 201, activeListDetails());
     });
     route("DELETE", "/api/list/meals/:listMealId/sides/:attachmentId", (_req, res, params) => {
