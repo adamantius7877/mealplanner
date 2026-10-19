@@ -110,6 +110,9 @@ export function createSides({ db, hasSharedFoodLibrary, sharedFoodRequest, valid
   }
 
   function registerRoutes({ route, sendJson, sendNoContent, readJson, activeListDetails }) {
+    route("GET", "/api/sides", async (_req, res) => {
+      sendJson(res, 200, await library());
+    });
     route("POST", "/api/sides", async (req, res) => {
       let food = validateMealPayload(await readJson(req));
       const key = `mealplanner-side-${randomUUID()}`;

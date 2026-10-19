@@ -222,6 +222,8 @@ test("multiple sides can be attached together, extended, removed individually, a
   const rice = await app.request("/api/sides", "POST", { name: "Rice", calories: 200, servings: 2, ingredients: ["Rice"] }, 201);
   const peas = await app.request("/api/sides", "POST", { name: "Peas", calories: 80, servings: 4, ingredients: ["Peas"] }, 201);
   const carrots = await app.request("/api/sides", "POST", { name: "Carrots", calories: 60, servings: 2, ingredients: ["Carrots"] }, 201);
+  const latestSides = await app.request("/api/sides");
+  assert.deepEqual(latestSides.map((side) => side.name), ["Carrots", "Peas", "Rice"]);
   let list = await app.request("/api/list/meals", "POST", { mealId: meal.id }, 201);
   const endpoint = `/api/list/meals/${list.meals[0].listMealId}/sides`;
   list = await app.request(endpoint, "POST", { sideIds: [rice.id, peas.id, rice.id] }, 201);

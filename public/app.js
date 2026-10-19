@@ -124,7 +124,8 @@ function openFoodDialog() {
     element: origin,
     selector: origin?.dataset.action === "edit"
       ? `#${state.editingKind === "side" ? "sideLibrary" : "mealLibrary"} button[data-action="edit"][data-id="${state.editingMealId}"]`
-      : null,
+      : origin?.id ? `#${CSS.escape(origin.id)}` : null,
+    sidePickerId: origin?.closest(".side-picker")?.dataset.listMealId,
     x: window.scrollX,
     y: window.scrollY
   };
@@ -135,6 +136,10 @@ function openFoodDialog() {
 
 function restoreDialogOrigin() {
   const origin = dialogOrigin;
+  if (origin?.sidePickerId) {
+    const picker = document.querySelector(`.side-picker[data-list-meal-id="${origin.sidePickerId}"]`);
+    if (picker) picker.open = true;
+  }
   const target = origin?.element?.isConnected ? origin.element : document.querySelector(origin?.selector || "#newMealBtn");
   target?.focus({ preventScroll: true });
   if (origin) window.scrollTo(origin.x, origin.y);
@@ -213,8 +218,6 @@ function renderMealCard(meal, context = "library", listMeal = null) {
 
 function renderAttachedSides(item, editable) {
   const attached = item.sides || [];
-  const keys = new Set(attached.map((side) => side.sharedFoodId));
-  const available = state.sides.filter((side) => !keys.has(side.sharedFoodId));
   return `
     ${attached.length ? `<ul class="attached-sides">${attached.map((side) => `
       <li>
@@ -222,15 +225,58 @@ function renderAttachedSides(item, editable) {
         ${editable ? `<div class="card-actions"><button class="ghost danger" type="button" data-action="remove-side" data-list-meal-id="${item.listMealId}" data-attachment-id="${side.attachmentId}" aria-label="Remove ${escapeHtml(side.name)} from ${escapeHtml(item.meal.name)}">Remove side</button></div>` : ""}
       </li>`).join("")}</ul>
       <p class="combined-total"><strong>Combined Total Per Serving: ${item.totalCaloriesPerServing} cal</strong>${item.caloriesIncomplete ? " (known calories only; some calories not provided)" : ""}</p>` : ""}
-    ${editable && available.length ? `<details class="side-picker">
+    ${editable ? `<details class="side-picker" data-list-meal-id="${item.listMealId}">
       <summary>${attached.length ? "Add more sides" : "Add sides"}</summary>
       <fieldset class="side-options" id="sideFor-${item.listMealId}">
         <legend>Sides for ${escapeHtml(item.meal.name)}</legend>
-        ${available.map((side) => `<label><input type="checkbox" value="${side.id}"><span>${escapeHtml(side.name)}</span></label>`).join("")}
+        ${sideOptions(item)}
       </fieldset>
-      <button class="ghost" type="button" data-action="attach-side" data-list-meal-id="${item.listMealId}">Add selected sides</button>
+      <p class="side-picker-status subtle" role="status"></p>
+      <div class="card-actions">
+        <button class="ghost" type="button" data-action="attach-side" data-list-meal-id="${item.listMealId}">Add selected sides</button>
+        <button id="newSideFor-${item.listMealId}" class="ghost" type="button" data-action="new-side" data-list-meal-id="${item.listMealId}">Create a side</button>
+      </div>
     </details>` : ""}`;
 }
+
+function sideOptions(item, checked = new Set()) {
+  const attachedKeys = new Set((item.sides || []).map((side) => side.sharedFoodId));
+  const available = state.sides.filter((side) => !attachedKeys.has(side.sharedFoodId));
+  return available.length
+    ? available.map((side) => `<label><input type="checkbox" value="${side.id}"${checked.has(String(side.id)) ? " checked" : ""}><span>${escapeHtml(side.name)}</span></label>`).join("")
+    : `<p class="subtle">${state.sides.length ? "All available sides are already added." : "No sides in the library yet."}</p>`;
+}
+
+async function refreshSidePicker(event) {
+  const picker = event.target;
+  if (!picker.matches(".side-picker") || !picker.open) return;
+  const options = picker.querySelector(".side-options");
+  const status = picker.querySelector(".side-picker-status");
+  const addButton = picker.querySelector('[data-action="attach-side"]');
+  options.disabled = true;
+  addButton.disabled = true;
+  status.textContent = "Refreshing sides...";
+  try {
+    const latest = await api("/api/sides");
+    if (!picker.isConnected) return;
+    state.sides = latest;
+    const item = state.activeList?.meals.find((meal) => meal.listMealId === Number(picker.dataset.listMealId));
+    if (!item) return;
+    const checked = new Set([...options.querySelectorAll("input:checked")].map((input) => input.value));
+    options.innerHTML = `<legend>Sides for ${escapeHtml(item.meal.name)}</legend>${sideOptions(item, checked)}`;
+    renderSides();
+    status.textContent = "";
+  } catch (error) {
+    status.textContent = `Could not refresh sides: ${error.message}`;
+  } finally {
+    options.disabled = false;
+    addButton.disabled = !options.querySelector("input");
+  }
+}
+
+[elements.plannedMeals, elements.hadMeals].forEach((list) => {
+  list.addEventListener("toggle", refreshSidePicker, true);
+});
 
 function renderSides() {
   const search = state.sideSearch.toLowerCase();
@@ -491,6 +537,11 @@ elements.sideLibrary.addEventListener("click", async (event) => {
 });
 
 async function changeAttachedSide(button) {
+  if (button.dataset.action === "new-side") {
+    resetForm("side");
+    openFoodDialog();
+    return;
+  }
   const id = Number(button.dataset.listMealId);
   const path = `/api/list/meals/${id}/sides`;
   button.disabled = true;
@@ -533,7 +584,7 @@ elements.mealLibrary.addEventListener("click", async (event) => {
 elements.plannedMeals.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
-  if (["attach-side", "remove-side"].includes(button.dataset.action)) return changeAttachedSide(button);
+  if (["attach-side", "remove-side", "new-side"].includes(button.dataset.action)) return changeAttachedSide(button);
   const id = Number(button.dataset.listMealId);
 
   try {
@@ -558,7 +609,7 @@ elements.plannedMeals.addEventListener("click", async (event) => {
 elements.hadMeals.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
-  if (["attach-side", "remove-side"].includes(button.dataset.action)) return changeAttachedSide(button);
+  if (["attach-side", "remove-side", "new-side"].includes(button.dataset.action)) return changeAttachedSide(button);
   const id = Number(button.dataset.listMealId);
 
   try {
