@@ -121,12 +121,17 @@ function updateCaloriePreview() {
   }
 }
 
-function renderMealCard(meal, context = "library", listMeal = null) {
+function renderFoodDetails(meal) {
   const meta = caloriesText(meal);
-  const ingredients = meal.ingredients.length
-    ? `<p class="ingredients">${escapeHtml(meal.ingredients.join(", "))}</p>`
-    : `<p class="ingredients">No ingredients listed.</p>`;
+  return `
+    <h3>${escapeHtml(meal.name)}</h3>
+    <div class="meta-row">
+      ${meta.length ? meta.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("") : `<span>No calorie details</span>`}
+    </div>
+    <p class="ingredients">${meal.ingredients.length ? escapeHtml(meal.ingredients.join(", ")) : "No ingredients listed."}</p>`;
+}
 
+function renderMealCard(meal, context = "library", listMeal = null) {
   let actions = "";
   if (context === "library" || context === "side-library") {
     actions = `
@@ -149,11 +154,7 @@ function renderMealCard(meal, context = "library", listMeal = null) {
   return `
     <article class="meal-card">
       <div>
-        <h3>${escapeHtml(meal.name)}</h3>
-        <div class="meta-row">
-          ${meta.length ? meta.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("") : `<span>No calorie details</span>`}
-        </div>
-        ${ingredients}
+        ${renderFoodDetails(meal)}
       </div>
       <div class="card-actions">${actions}</div>
       ${listMeal ? `<div class="meal-extras">${renderAttachedSides(listMeal, context !== "history")}</div>` : ""}
@@ -168,11 +169,8 @@ function renderAttachedSides(item, editable) {
   return `
     ${attached.length ? `<ul class="attached-sides">${attached.map((side) => `
       <li>
-        <div><strong>${escapeHtml(side.name)}</strong>
-          <p class="side-meta">${escapeHtml(caloriesText(side).join(" | ")) || "No calorie details"}</p>
-          ${side.ingredients.length ? `<p class="side-meta">${escapeHtml(side.ingredients.join(", "))}</p>` : ""}
-        </div>
-        ${editable ? `<button class="ghost danger" type="button" data-action="remove-side" data-list-meal-id="${item.listMealId}" data-attachment-id="${side.attachmentId}" aria-label="Remove ${escapeHtml(side.name)} from ${escapeHtml(item.meal.name)}">Remove side</button>` : ""}
+        <div>${renderFoodDetails(side)}</div>
+        ${editable ? `<div class="card-actions"><button class="ghost danger" type="button" data-action="remove-side" data-list-meal-id="${item.listMealId}" data-attachment-id="${side.attachmentId}" aria-label="Remove ${escapeHtml(side.name)} from ${escapeHtml(item.meal.name)}">Remove side</button></div>` : ""}
       </li>`).join("")}</ul>
       <p class="combined-total"><strong>Combined Total Per Serving: ${item.totalCaloriesPerServing} cal</strong>${item.caloriesIncomplete ? " (known calories only; some calories not provided)" : ""}</p>` : ""}
     ${editable && available.length ? `<div class="side-picker">
